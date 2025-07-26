@@ -8,6 +8,11 @@ dependencies = [
     "dnspython>=2.7.0",
 ]
 
+[project.optional-dependencies]
+fastapi = [
+    "fastapi[standard]>=0.116.1",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=8.4.1",
