@@ -1,7 +1,7 @@
 [project]
 name = "smtp-tlsa-verify"
 version = "0.1.0"
-description = "A small library, command-line utility and JSON/HTTP service to check DANE/TLSA-RRs against SMTP servers."
+description = "A small library, command-line utility and JSON/HTTP/FastAPI service to check DANE/TLSA-RRs against SMTP servers."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
