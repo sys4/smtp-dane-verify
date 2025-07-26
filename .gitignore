@@ -1,0 +1,9 @@
+# MacOS
+._DS_Store
+
+# VSCode
+.vscode/settings.json
+
+# Python
+__pycache__
+.venv
