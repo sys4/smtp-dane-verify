@@ -1,4 +1,7 @@
+from typing import List
+
 import dns.resolver
+import dns.rdtypes.ANY.TLSA
 
 
 class TlsaRecordError(Exception):
@@ -6,12 +9,11 @@ class TlsaRecordError(Exception):
 
 
 def get_tlsa_record(hostname):
-    query = f'_25._tcp.{hostname}'
+    query = f"_25._tcp.{hostname}"
     try:
         # Perform the DNS query for the TLSA record
-        answers = dns.resolver.resolve(query, 'TLSA')
+        tlsa_records = dns.resolver.resolve(query, "TLSA")
         # Extract and return the TLSA records
-        tlsa_records = [answer.to_text() for answer in answers]
         return tlsa_records
     except dns.resolver.NoAnswer:
         print(f"No TLSA record found for {query}")
@@ -25,3 +27,25 @@ def get_tlsa_record(hostname):
     except Exception as e:
         print(f"An error occurred: {e}")
         return []
+
+
+def filter_tlsa_resource_records(
+    answers: List[dns.rdtypes.ANY.TLSA.TLSA],
+    usages: List[int] = [2, 3],
+    selectors: List[int] = [0, 1],
+    matching_types: List[int] = [0, 1, 2],
+) -> List[dns.rdtypes.ANY.TLSA.TLSA]:
+    """
+    Filter the answers from get_tlsa_record, only use the
+    """
+    filtered_answers = []
+    for answer in answers:
+        if not answer.usage in usages:
+            continue
+        if not answer.selector in selectors:
+            continue
+        if not answer.mtype in matching_types:
+            continue
+        # All the conditions are met, add to answers
+        filtered_answers.append(answer)
+    return filtered_answers

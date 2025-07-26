@@ -3,26 +3,49 @@
 
 import argparse
 
+from smtp_tlsa_verify.dns_records import get_tlsa_record, filter_tlsa_resource_records
+from smtp_tlsa_verify.verification import verify_tlsa_resource_record
+
+
 def main():
     # Create the argument parser
-    parser = argparse.ArgumentParser(description='Process some parameters.')
+    parser = argparse.ArgumentParser(usage="Process some parameters.")
 
     # Add the -a/--address argument
-    parser.add_argument('-a', '--address', type=str, required=False, help='The address parameter')
+    parser.add_argument(
+        "-a", "--address", type=str, required=False, help="The address parameter"
+    )
 
     # Add the -u/--usages argument with a default value of '2,3'
-    parser.add_argument('-u', '--usages', type=str, default='2,3', help='The usages parameter (default: 2,3)')
+    parser.add_argument(
+        "-u",
+        "--usages",
+        type=str,
+        default="2,3",
+        help="The usages parameter (default: 2,3)",
+    )
+
+    # Allow to set the OpenSSL binary path
+    parser.add_argument(
+        "-o",
+        "--openssl",
+        type=str,
+        default="openssl",
+        help='Path to the `openssl` binary, default: "openssl"',
+    )
 
     # Add a non-option hostname argument
-    parser.add_argument('hostname', type=str, help='The SMTP server hostname (required)')
+    parser.add_argument(
+        "hostname", type=str, help="The SMTP server hostname (required)"
+    )
 
     # Parse the arguments
     args = parser.parse_args()
 
-    # Print the parsed arguments
-    print(f'Address: {args.address}')
-    print(f'Usages: {args.usages}')
-    print(f'Hostname: {args.hostname}')
+    answers = get_tlsa_record(args.hostname)
+    filtered_answers = filter_tlsa_resource_records(answers)
+    verify_tlsa_resource_record(args.hostname, filtered_answers, openssl=args.openssl)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

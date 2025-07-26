@@ -15,7 +15,15 @@ fastapi = [
 
 [dependency-groups]
 dev = [
+    "pipx>=1.7.1",
     "pytest>=8.4.1",
     "ruff>=0.12.5",
     "tox>=4.28.3",
 ]
+
+[project.scripts]
+danesmtp = "smtp_tlsa_verify.cli:main"
+
+[build-system]
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
