@@ -6,7 +6,17 @@ import pydantic
 
 from smtp_tlsa_verify.verification import verify, VerificationResult
 
-app = FastAPI()
+DESCRIPTION = '''
+This is API verifies TLSA Resource Records, used for DANE with e-mail servers.
+
+This project is shttp://localhost:8000/docs/ponsored by sys4 AG, Germany
+'''
+
+app = FastAPI(
+    title="SMTP-TLSA Resource Record Verification API",
+    version='1.0.0',
+    description=DESCRIPTION,
+)
 
 
 OPENSSL_PATH = os.environ.get('OPENSSLPATH', None)

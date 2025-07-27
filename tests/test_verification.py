@@ -25,9 +25,9 @@ def test_verify_tlsa_resource_record():
         )
     ]
     command = ['/mock/bin/openssl', 's_client', '-brief', '-starttls', 'smtp',
-               '-connect', 'example.com:25-verify', '9', '-verify_return_error',
-               '-dane_ee_no_namechecks', '-dane_tlsa_domainexample.com',
-               '-dane_tlsa_rrdata', '3 1 1 236831AEEAB41E7BD10DC14320600B245C791B338121383D5A2916F7EF97B49B']
-    with patch('smtp_tlsa_verify.verification.subprocess.call') as mock_call:
+               '-connect', 'example.com:25', '-verify', '9', '-verify_return_error',
+               '-dane_ee_no_namechecks', '-dane_tlsa_domain', 'example.com',
+               '-dane_tlsa_rrdata', '"3 1 1 236831AEEAB41E7BD10DC14320600B245C791B338121383D5A2916F7EF97B49B"']
+    with patch('smtp_tlsa_verify.verification.subprocess.Popen') as mock_call:
         verify_tlsa_resource_record('example.com', fake_answers, openssl='/mock/bin/openssl')
-        mock_call.assert_called_once_with(command, shell=True)
+        mock_call.assert_called_once_with(' '.join(command), stdin=-1, stdout=-1, stderr=-1, shell=True)

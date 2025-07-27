@@ -2,10 +2,11 @@ import unittest
 from dataclasses import dataclass
 from unittest.mock import patch
 
+import pytest
 import dns.resolver  # Will be mocked
 
 # Unit under test
-from smtp_tlsa_verify.dns_records import filter_tlsa_resource_records, get_tlsa_record
+from smtp_tlsa_verify.dns_records import TlsaRecordError, filter_tlsa_resource_records, get_tlsa_record
 
 
 class TestGetTLSARecord:
@@ -31,10 +32,8 @@ class TestGetTLSARecord:
         mock_resolve.side_effect = dns.resolver.NoAnswer
 
         # Call the function
-        result = get_tlsa_record("example.com")
-
-        # Check the result
-        assert result == []
+        with pytest.raises(TlsaRecordError) as err:
+            result = get_tlsa_record("example.com")
 
     @patch("smtp_tlsa_verify.dns_records.dns.resolver.resolve")
     def test_get_tlsa_record_nxdomain(self, mock_resolve):
@@ -42,10 +41,8 @@ class TestGetTLSARecord:
         mock_resolve.side_effect = dns.resolver.NXDOMAIN
 
         # Call the function
-        result = get_tlsa_record("example.com")
-
-        # Check the result
-        assert result == []
+        with pytest.raises(TlsaRecordError) as err:
+            result = get_tlsa_record("example.com")
 
     @patch("smtp_tlsa_verify.dns_records.dns.resolver.resolve")
     def test_get_tlsa_record_timeout(self, mock_resolve):
@@ -53,10 +50,9 @@ class TestGetTLSARecord:
         mock_resolve.side_effect = dns.resolver.Timeout
 
         # Call the function
-        result = get_tlsa_record("example.com")
+        with pytest.raises(TlsaRecordError) as err:
+            get_tlsa_record("example.com")
 
-        # Check the result
-        assert result == []
 
     @patch("smtp_tlsa_verify.dns_records.dns.resolver.resolve")
     def test_get_tlsa_record_exception(self, mock_resolve):
@@ -64,10 +60,8 @@ class TestGetTLSARecord:
         mock_resolve.side_effect = Exception("Test exception")
 
         # Call the function
-        result = get_tlsa_record("example.com")
-
-        # Check the result
-        self
+        with pytest.raises(TlsaRecordError) as err:
+            get_tlsa_record("example.com")
 
 
 @dataclass
