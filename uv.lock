@@ -733,6 +733,9 @@ dev = [
     { name = "ruff" },
     { name = "tox" },
 ]
+fastapi = [
+    { name = "fastapi", extra = ["standard"] },
+]
 
 [package.metadata]
 requires-dist = [
@@ -750,6 +753,7 @@ dev = [
     { name = "ruff", specifier = ">=0.12.5" },
     { name = "tox", specifier = ">=4.28.3" },
 ]
+fastapi = [{ name = "fastapi", extras = ["standard"], specifier = ">=0.116.1" }]
 
 [[package]]
 name = "sniffio"

@@ -16,9 +16,10 @@ ENV PATH="/root/.local/bin/:$PATH"
 ADD pyproject.toml /app/
 ADD smtp_tlsa_verify /app/
 ADD . /app
+ADD entrypoint.sh /entrypoint
+RUN chmod +x /entrypoint
 
 # Sync the project into a new environment
 WORKDIR /app
 RUN uv sync --no-dev --group fastapi
-EXPOSE 8000
-CMD [ "/app/.venv/bin/python", "-m", "uvicorn", "--host", "0.0.0.0", "--port", "8000", "smtp_tlsa_verify.api:app"]
+ENTRYPOINT [ "/entrypoint" ]

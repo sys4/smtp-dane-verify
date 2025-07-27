@@ -1,2 +1,14 @@
 = danesmtp
 
+By default the docker container will be available on port 3000.
+
+```
+docker run -p3000:3000 smtp-tlsa-verify
+```
+
+In order to run the command under a different port number, please use the
+"-p" parameter:
+
+```
+docker run -p4000:4000 smtp-tlsa-verify -p 4000
+```
