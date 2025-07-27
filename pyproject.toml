@@ -7,6 +7,7 @@ requires-python = ">=3.11"
 dependencies = [
     "dnspython>=2.7.0",
     "fastapi[standard]>=0.116.1",
+    "pydantic>=2.11.7",
 ]
 
 [project.optional-dependencies]
@@ -21,6 +22,9 @@ dev = [
     "ruff>=0.12.5",
     "tox>=4.28.3",
 ]
+fastapi = [
+    "fastapi[standard]>=0.116.1",
+]
 
 [project.scripts]
 danesmtp = "smtp_tlsa_verify.cli:main"
@@ -28,3 +32,4 @@ danesmtp = "smtp_tlsa_verify.cli:main"
 [build-system]
 requires = ["hatchling >= 1.26"]
 build-backend = "hatchling.build"
+

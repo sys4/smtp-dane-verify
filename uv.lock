@@ -718,6 +718,7 @@ source = { editable = "." }
 dependencies = [
     { name = "dnspython" },
     { name = "fastapi", extra = ["standard"] },
+    { name = "pydantic" },
 ]
 
 [package.optional-dependencies]
@@ -738,6 +739,7 @@ requires-dist = [
     { name = "dnspython", specifier = ">=2.7.0" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.116.1" },
     { name = "fastapi", extras = ["standard"], marker = "extra == 'fastapi'", specifier = ">=0.116.1" },
+    { name = "pydantic", specifier = ">=2.11.7" },
 ]
 provides-extras = ["fastapi"]
 
