@@ -717,6 +717,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "dnspython" },
+    { name = "fastapi", extra = ["standard"] },
 ]
 
 [package.optional-dependencies]
@@ -735,6 +736,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "dnspython", specifier = ">=2.7.0" },
+    { name = "fastapi", extras = ["standard"], specifier = ">=0.116.1" },
     { name = "fastapi", extras = ["standard"], marker = "extra == 'fastapi'", specifier = ">=0.116.1" },
 ]
 provides-extras = ["fastapi"]

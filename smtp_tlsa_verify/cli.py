@@ -4,7 +4,7 @@
 import argparse
 
 from smtp_tlsa_verify.dns_records import get_tlsa_record, filter_tlsa_resource_records
-from smtp_tlsa_verify.verification import verify_tlsa_resource_record
+from smtp_tlsa_verify.verification import verify, verify_tlsa_resource_record
 
 
 def main():
@@ -41,10 +41,8 @@ def main():
 
     # Parse the arguments
     args = parser.parse_args()
-
-    answers = get_tlsa_record(args.hostname)
-    filtered_answers = filter_tlsa_resource_records(answers)
-    verify_tlsa_resource_record(args.hostname, filtered_answers, openssl=args.openssl)
+    result = verify(args.hostname, openssl=args.openssl)
+    print(result)
 
 
 if __name__ == "__main__":

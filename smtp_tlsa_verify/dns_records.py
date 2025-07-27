@@ -16,17 +16,13 @@ def get_tlsa_record(hostname):
         # Extract and return the TLSA records
         return tlsa_records
     except dns.resolver.NoAnswer:
-        print(f"No TLSA record found for {query}")
-        return []
+        raise TlsaRecordError(f"No TLSA record found for {query}")
     except dns.resolver.NXDOMAIN:
-        print(f"Domain {query} does not exist")
-        return []
+        raise TlsaRecordError(f"Domain {query} does not exist")
     except dns.resolver.Timeout:
-        print(f"Timeout while querying {query}")
-        return []
+        raise TlsaRecordError(f"Timeout while querying {query}")
     except Exception as e:
-        print(f"An error occurred: {e}")
-        return []
+        raise TlsaRecordError(f"An error occurred: {e}")
 
 
 def filter_tlsa_resource_records(
