@@ -14,7 +14,7 @@ This is API verifies TLSA Resource Records, used for DANE with e-mail servers.
 This project is shttp://localhost:8000/docs/ponsored by sys4 AG, Germany
 '''
 API_TITLE = "SMTP-TLSA Resource Record Verification API"
-API_VERSION = "1.0.0"
+API_VERSION = "0.1.1"
 
 app = FastAPI(
     title=API_TITLE,

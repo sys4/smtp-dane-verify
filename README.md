@@ -16,6 +16,22 @@ uv add smtp-tlsa-verify --extra fastapi
 
 ## Installing as a command line utility using pipx
 
+```
+pipx install smpt-tlsa-verify
+```
+
+After installation you can run the following command to verify: `danesmtp mail.example.com`
+
 
 ## Using as a library
 
+```
+pip install smtp-tlsa-verify
+```
+
+```
+from smtp_tlsa_verify import verify
+
+result = verify("mail.example.com")
+print(result)
+```
