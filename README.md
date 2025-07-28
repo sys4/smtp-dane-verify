@@ -1,5 +1,20 @@
 # smtp-tlsa-verify
 
+## Using Docker to run the Micro-API as a Container
+
+```
+docker run --rm -p 3000:3000 -e APIKEY=secretapikey sys4ag/smtp-tlsa-verify
+```
+
+Then open http://localhost:3000/ in your Browser. You will see an error message.
+
+Add the `api_key` parameter to the URL to get access to the API, for example:
+
+  - http://localhost:3000/docs/?api_key=secretapikey
+
+Using the built-in docs you can interactively 
+
+
 ## Installing and running the FastAPI-based HTTP/JSON service
 
 Install using the `fastapi` extra option:
