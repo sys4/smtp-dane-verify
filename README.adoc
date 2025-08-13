@@ -157,18 +157,18 @@ image::assets/kuma_add_new_monitor.png[]
 
 Follow these steps to integrate `smtp-tlsa-verify` into Uptime Kuma:
 
-. Choose menu:[Add New Monitor] and select menu:[HTTP(s) - Json Query] as
-  menu:[Monitor Type] in the
-  menu:[General] section of the menu:[Add New Monitor] dialogue. 
-. Give the Monitor a menu:[Friendly Name] e.g. `SMTP TLSA Verify`.
-. Enter `http://[::1]:3000/verify/` as menu:[URL].
-. Enter `is_valid` into the menu:[Json Query] form field
-. Enter `true` in the menu:[Expected Value] form field.
-. Then turn to the menu:[HTTP Options] section and add the host you want to
+. Choose menu:Add New Monitor[] and select menu:HTTP(s) - Json Query[] as
+  menu:Monitor Type[] in the
+  menu:General[] section of the menu:Add New Monitor[] dialogue. 
+. Give the Monitor a menu:Friendly Name[] e.g. `SMTP TLSA Verify`.
+. Enter `http://[::1]:3000/verify/` as menu:URL[].
+. Enter `is_valid` into the menu:Json Query[] form field
+. Enter `true` in the menu:Expected Value[] form field.
+. Then turn to the menu:HTTP Options[] section and add the host you want to
   probe as JSON DATA e.g. like this: `{ "hostname": "mail2.ietf.org" }`
-. Finally provide your `APIKEY` by writing it into the menu:[Headers] form field like
+. Finally provide your `APIKEY` by writing it into the menu:Headers[] form field like
   this: `{ "x-apikey": "SAsMTaxKPbTZwD0c25cCZE/JXJAtqi" }`
-. btn:[Save] the menu:[Add New Monitor] dialogue
+. btn:[Save] the menu:Add New Monitor[] dialogue
 
 
 
