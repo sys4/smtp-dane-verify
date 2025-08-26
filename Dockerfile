@@ -14,7 +14,7 @@ ENV PATH="/root/.local/bin/:$PATH"
 
 # Copy the project into the image
 ADD pyproject.toml /app/
-ADD smtp_tlsa_verify /app/
+ADD smtp_dane_verify /app/
 ADD . /app
 ADD entrypoint.sh /entrypoint
 RUN chmod +x /entrypoint

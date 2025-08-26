@@ -3,8 +3,8 @@
 
 import argparse
 
-from smtp_tlsa_verify.dns_records import get_tlsa_record, filter_tlsa_resource_records
-from smtp_tlsa_verify.verification import verify, verify_tlsa_resource_record
+from smtp_dane_verify.dns_records import get_tlsa_record, filter_tlsa_resource_records
+from smtp_dane_verify.verification import verify, verify_tlsa_resource_record
 
 
 def main():

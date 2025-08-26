@@ -1,5 +1,5 @@
 [project]
-name = "smtp-tlsa-verify"
+name = "smtp-dane-verify"
 version = "0.1.2"
 description = "A small library, command-line utility and JSON/HTTP/FastAPI service to check DANE/TLSA-RRs against SMTP servers."
 readme = "README.md"
@@ -7,8 +7,7 @@ requires-python = ">=3.11"
 license-files = ["LICENSE.*"]
 dependencies = [
     "dnspython>=2.7.0",
-    "fastapi[standard]>=0.116.1",
-    "pydantic>=2.11.7",
+    "pydantic>=2.11.7"
 ]
 classifiers = ["License :: OSI Approved :: GNU Affero General Public License v3"]
 
@@ -22,14 +21,14 @@ dev = [
     "pipx>=1.7.1",
     "pytest>=8.4.1",
     "ruff>=0.12.5",
-    "tox>=4.28.3",
+    "tox>=4.28.3"
 ]
 fastapi = [
     "fastapi[standard]>=0.116.1",
 ]
 
 [project.scripts]
-danesmtp = "smtp_tlsa_verify.cli:main"
+danesmtp = "smtp_dane_verify.cli:main"
 
 [build-system]
 requires = ["hatchling >= 1.26"]

@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
 
-from smtp_tlsa_verify.verification import verify, VerificationResult
+from smtp_dane_verify.verification import verify, VerificationResult
 
 DESCRIPTION = '''
 This is API verifies TLSA Resource Records, used for DANE with e-mail servers.

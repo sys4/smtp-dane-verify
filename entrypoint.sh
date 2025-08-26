@@ -43,4 +43,4 @@ else
     echo "Debug mode is disabled"
 fi
 
-/app/.venv/bin/python3  -m uvicorn --host 0.0.0.0 --port "$PORT" smtp_tlsa_verify.api:app
+/app/.venv/bin/python3  -m uvicorn --host 0.0.0.0 --port "$PORT" smtp_dane_verify.api:app

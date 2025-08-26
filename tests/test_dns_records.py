@@ -6,11 +6,11 @@ import pytest
 import dns.resolver  # Will be mocked
 
 # Unit under test
-from smtp_tlsa_verify.dns_records import TlsaRecordError, filter_tlsa_resource_records, get_tlsa_record
+from smtp_dane_verify.dns_records import TlsaRecordError, filter_tlsa_resource_records, get_tlsa_record
 
 
 class TestGetTLSARecord:
-    @patch("smtp_tlsa_verify.dns_records.dns.resolver.resolve")
+    @patch("smtp_dane_verify.dns_records.dns.resolver.resolve")
     def test_get_tlsa_record_success(self, mock_resolve):
         # Mock the DNS resolver to return a sample TLSA record
         mock_answer = unittest.mock.Mock()
@@ -26,7 +26,7 @@ class TestGetTLSARecord:
         assert result[0].to_text() \
             == "3 1 1 1234567890abcdef1234567890abcdef1234567890abcdef"
 
-    @patch("smtp_tlsa_verify.dns_records.dns.resolver.resolve")
+    @patch("smtp_dane_verify.dns_records.dns.resolver.resolve")
     def test_get_tlsa_record_no_answer(self, mock_resolve):
         # Mock the DNS resolver to raise NoAnswer
         mock_resolve.side_effect = dns.resolver.NoAnswer
@@ -35,7 +35,7 @@ class TestGetTLSARecord:
         with pytest.raises(TlsaRecordError) as err:
             result = get_tlsa_record("example.com")
 
-    @patch("smtp_tlsa_verify.dns_records.dns.resolver.resolve")
+    @patch("smtp_dane_verify.dns_records.dns.resolver.resolve")
     def test_get_tlsa_record_nxdomain(self, mock_resolve):
         # Mock the DNS resolver to raise NXDOMAIN
         mock_resolve.side_effect = dns.resolver.NXDOMAIN
@@ -44,7 +44,7 @@ class TestGetTLSARecord:
         with pytest.raises(TlsaRecordError) as err:
             result = get_tlsa_record("example.com")
 
-    @patch("smtp_tlsa_verify.dns_records.dns.resolver.resolve")
+    @patch("smtp_dane_verify.dns_records.dns.resolver.resolve")
     def test_get_tlsa_record_timeout(self, mock_resolve):
         # Mock the DNS resolver to raise Timeout
         mock_resolve.side_effect = dns.resolver.Timeout
@@ -54,7 +54,7 @@ class TestGetTLSARecord:
             get_tlsa_record("example.com")
 
 
-    @patch("smtp_tlsa_verify.dns_records.dns.resolver.resolve")
+    @patch("smtp_dane_verify.dns_records.dns.resolver.resolve")
     def test_get_tlsa_record_exception(self, mock_resolve):
         # Mock the DNS resolver to raise a generic exception
         mock_resolve.side_effect = Exception("Test exception")
