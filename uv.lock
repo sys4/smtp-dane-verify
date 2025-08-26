@@ -712,12 +712,11 @@ wheels = [
 ]
 
 [[package]]
-name = "smtp-tlsa-verify"
-version = "0.1.0"
+name = "smtp-dane-verify"
+version = "0.1.2"
 source = { editable = "." }
 dependencies = [
     { name = "dnspython" },
-    { name = "fastapi", extra = ["standard"] },
     { name = "pydantic" },
 ]
 
@@ -740,7 +739,6 @@ fastapi = [
 [package.metadata]
 requires-dist = [
     { name = "dnspython", specifier = ">=2.7.0" },
-    { name = "fastapi", extras = ["standard"], specifier = ">=0.116.1" },
     { name = "fastapi", extras = ["standard"], marker = "extra == 'fastapi'", specifier = ">=0.116.1" },
     { name = "pydantic", specifier = ">=2.11.7" },
 ]

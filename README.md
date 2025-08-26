@@ -45,7 +45,7 @@ pip install smtp-tlsa-verify
 ```
 
 ```
-from smtp_tlsa_verify import verify
+from smtp_dane_verify import verify
 
 result = verify("mail.example.com")
 print(result)

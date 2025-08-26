@@ -5,7 +5,7 @@ from typing import Optional, List
 import dns.rdtypes.ANY.TLSA
 import pydantic
 
-from smtp_tlsa_verify.dns_records import (
+from smtp_dane_verify.dns_records import (
     TlsaRecordError,
     filter_tlsa_resource_records,
     get_tlsa_record,
