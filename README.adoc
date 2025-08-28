@@ -1,6 +1,8 @@
 = SMTP DANE Verify
 :experimental:
 
+== What is SMTP-DANE-Verify ?
+
 Problems with DANE usally stem from TLSA Resource Records that don't match the
 SMTP services x509 certificate fingerprint. This happens if not only the
 certificate was renewed, but also the private key because then the certificates
@@ -23,7 +25,7 @@ routines to do the probing.
 
 You can install and run smtp-dane-verify as a service and run it on a machine or
 you download and run smtp-dane-verify as docker container. We recommend the
-lattr. It's hassle free.
+latter. It's hassle free.
 
 == Running smtp-dane-verify as docker container
 
