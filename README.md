@@ -1,52 +1,163 @@
-# smtp-tlsa-verify
+# What is SMTP-DANE-Verify ?
 
-## Using Docker to run the Micro-API as a Container
+Problems with DANE usally stem from TLSA Resource Records that don’t
+match the SMTP services x509 certificate fingerprint. This happens if
+not only the certificate was renewed, but also the private key because
+then the certificates fingerprint changes. It also happens if a
+certificate from a new vendor is used in production and, of course, also
+if those creating the TLSA Resource Record get something wrong and the
+TLSA record doesn’t match right from the start. Whatever reason if no
+TLSA Resource Record matches DANE verification will fail and DANE
+verifying servers will not send messages to a mismatching SMTP service.
 
-```
-docker run --rm -p 3000:3000 -e APIKEY=secretapikey sys4ag/smtp-tlsa-verify
-```
+SMTP DANE Verify will not prevent you from publishing mismatching TLSA
+Resource Records, but it will help you to detect that there is a
+mismatch. It provides a service that verifies one of more TLSA Resource
+Records, published for a SMTP service, match the service’s x509
+certificate fingerprint.
 
-Then open http://localhost:3000/ in your Browser. You will see an error message.
+Use it as external probing service in your monitoring platform. Tell it
+which host to verify and it will reply if the test was valid or not.
+Designed as a standalone service meant to be used as probing tool by
+monitoring services it exposes a REST API that communicates in JSON.
+Internally it uses openssl routines to do the probing.
 
-Add the `api_key` parameter to the URL to get access to the API, for example:
+You can install and run smtp-dane-verify as a service and run it on a
+machine or you download and run smtp-dane-verify as docker container. We
+recommend the latter. It’s hassle free.
 
-  - http://localhost:3000/docs/?api_key=secretapikey
+# Running smtp-dane-verify as docker container
 
-Using the built-in docs you can interactively 
+smtp-dane-verify expects the service that queries for a probe to
+authenticate itself using an API key. This API key must be known to
+smtp-dane-verify beforehand. Create an API key e.g. executing
+`base64 /dev/urandom | head -c30` on the command line like this:
 
+    % base64 /dev/urandom | head -c30
+    SAsMTaxKPbTZwD0c25cCZE/JXJAtqi
 
-## Installing and running the FastAPI-based HTTP/JSON service
+Then use the output as `APIKEY` environment variable in
+smtp-dane-verify’s `docker-compose.yml` configuration file. By default
+smtp-dane-verify will use on any available network interface on port
+`3000`. The following example changes that and binds smtp-dane-verify
+explicitly on `::1`. Still it exposes port `3000` to the outside and
+forwards it internally to the same port:
 
-Install using the `fastapi` extra option:
+**docker-compose.yml**
 
-```
-pip install smtp-tlsa-verify[fastapi]
-```
+    name: smtp-tlsa-verify
+    services:
+      smtp-tlsa-verify:
+        image: sys4ag/smtp-tlsa-verify
+        container_name: smtp-tlsa-verify
+        environment:
+          APIKEY: SAsMTaxKPbTZwD0c25cCZE/JXJAtqi
+        ports:
+          - "[::]:3000:3000"
+        restart: always
 
-or if using the `uv` package manager:
+In this example all docker instances are located in `/opt/$CONTAINER` on
+the host machine. To start smtp-tlsa-verify either change into
+`/opt/smtp-tlsa-verify` and excute:
 
-```
-uv add smtp-tlsa-verify --extra fastapi
-```
+    % docker up -d
 
-## Installing as a command line utility using pipx
+Or, alternatively and if you use systemd, create a systemd service unit
+file `/etc/systemd/system/docker-compose@.service` like this:
 
-```
-pipx install smpt-tlsa-verify
-```
+**docker-compose@.service**
 
-After installation you can run the following command to verify: `danesmtp mail.example.com`
+    [Unit]
+    Description=%i service with docker compose
+    Requires=docker.service
+    After=docker.service
 
+    [Service]
+    WorkingDirectory=/opt/%i
+    ExecStartPre=-/usr/bin/docker compose pull
+    ExecStart=/usr/bin/docker compose up --remove-orphans
+    ExecStop=/usr/bin/docker compose down
+    ExecReload=/usr/bin/docker compose pull
+    ExecReload=/usr/bin/docker compose up --remove-orphans
 
-## Using as a library
+    [Install]
+    WantedBy=multi-user.target
 
-```
-pip install smtp-tlsa-verify
-```
+Then use the systemd service template and create a systemd unit file for
+`smtp-tlsa-verify` like this:
 
-```
-from smtp_dane_verify import verify
+    % systemctl enable --now docker-compose@smtp-tlsa-verify.service
 
-result = verify("mail.example.com")
-print(result)
-```
+This will enable **and** start the service. If you start
+`smtp-tlsa-verify` for the first time, docker will initially download
+the container `sys4ag/smtp-tlsa-verify` and then it will start it. If
+this step was successfull you will be able to verify `smtp-tlsa-verify`
+has bound itself to port `3000/tcp` listening on IPv6 only:
+
+    # lsof -Pni tcp:3000
+    COMMAND      PID USER FD   TYPE  DEVICE SIZE/OFF NODE NAME
+    docker-pr 481892 root 7u  IPv6 3259319      0t0  TCP *:3000 (LISTEN)
+
+Your `smtp-tlsa-verify` docker container should now be ready to probe
+hosts. Verify it works using the following command and your personal
+APIKEY:
+
+    curl --header "x-apikey: SAsMTaxKPbTZwD0c25cCZE/JXJAtqi" \
+        --header "Content-Type: application/json" \
+        --request POST \
+        --data '{"hostname":"mail2.ietf.org"}' \
+        http://[::1]:3000/verify/
+
+Upon return `smtp-tlsa-verify` will output [RFC
+8259](https://www.rfc-editor.org/rfc/rfc8259) formatted JSON data:
+
+    {
+       "is_valid":true,
+       "protocol_version":"TLSv1.3",
+       "hostname":"mail2.ietf.org.",
+       "ciphersuite":"TLS_AES_256_GCM_SHA384",
+       "peer_certificate":"CN = *.ietf.org",
+       "hash_used":"SHA256",
+       "signature_type":"ECDSA",
+       "verification":"OK",
+       "openssl_return_code":0,
+       "message":null
+    }
+
+If `smtp-tlsa-verify` works like this for you you can start integrating
+it into your monitoring service.
+
+# Monitoring services
+
+## Uptime Kuma
+
+> Uptime Kuma is an easy-to-use self-hosted monitoring tool.
+>
+> —  Uptime Kuma Website
+
+<figure>
+<img src="assets/kuma_add_new_monitor.png" alt="kuma add new monitor" />
+<figcaption>Uptime Kuma "Add New Monitor" dialogue</figcaption>
+</figure>
+
+Follow these steps to integrate `smtp-tlsa-verify` into Uptime Kuma:
+
+1.  Choose Add New Monitor and select HTTP(s) - Json Query as Monitor
+    Type in the General section of the Add New Monitor dialogue.
+
+2.  Give the Monitor a Friendly Name e.g. `SMTP TLSA Verify`.
+
+3.  Enter `http://[::1]:3000/verify/` as URL.
+
+4.  Enter `is_valid` into the Json Query form field
+
+5.  Enter `true` in the Expected Value form field.
+
+6.  Then turn to the HTTP Options section and add the host you want to
+    probe as JSON DATA e.g. like this:
+    `{ "hostname": "mail2.ietf.org" }`
+
+7.  Finally provide your `APIKEY` by writing it into the Headers form
+    field like this: `{ "x-apikey": "SAsMTaxKPbTZwD0c25cCZE/JXJAtqi" }`
+
+8.  Save the Add New Monitor dialogue

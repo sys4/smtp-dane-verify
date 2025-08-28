@@ -6,7 +6,8 @@ pkgs.mkShell {
 	pkgs.openssl
 	pkgs.git
 	pkgs.python311
-	pkgs.openssl
+	pkgs.pandoc
+	pkgs.asciidoctor
   ];
 
 }
