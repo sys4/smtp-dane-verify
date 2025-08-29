@@ -27,6 +27,58 @@ You can install and run smtp-dane-verify as a service and run it on a machine or
 you download and run smtp-dane-verify as docker container. We recommend the
 latter. It's hassle free.
 
+== Using the command-line interface (CLI) ==
+
+After installing the dane-smtp the command `danesmtp` is available.
+The shell status code of the command is 0 when validation is completed succesfully, 1 otherwise.
+
+[source,console]
+% danesmtp --help
+usage: danesmtp [-h] [-a ADDRESS] [-u USAGES] [-o OPENSSL] [-j] hostname
+
+Verify that your DANE records and your SMTP server are configured correctly.
+----
+positional arguments:
+  hostname              The SMTP server hostname (required)
+
+options:
+  -h, --help            show this help message and exit
+  -a ADDRESS, --address ADDRESS
+                        The address parameter
+  -u USAGES, --usages USAGES
+                        The usages parameter (default: 2,3)
+  -o OPENSSL, --openssl OPENSSL
+                        Path to the `openssl` binary, default: "openssl"
+  -j, --json            Output the verification result as JSON to STDOUT
+----
+
+The CLI can easily be used with other tool by switcing the output format to JSON:
+
+[source,console]
+----
+% danesmtp -j mail.example.com
+{
+  "is_valid": true,
+  "protocol_version": "TLSv1.2",
+  "hostname": "mail.example.com",
+  "ciphersuite": "ECDHE-RSA-AES256-GCM-SHA384",
+  "peer_certificate": "CN=mail.example.com",
+  "hash_used": "SHA256",
+  "signature_type": "RSA",
+  "verification": "OK",
+  "openssl_return_code": 0,
+  "message": null
+}
+----
+
+With additional toolin like "jq" you can easily extract data from the JSON output, example:
+
+[source,console]
+----
+% danesmtp -j mail.example.com | jq .verification
+"OK"
+----
+
 == Running smtp-dane-verify as docker container
 
 smtp-dane-verify expects the service that queries for a probe to authenticate
