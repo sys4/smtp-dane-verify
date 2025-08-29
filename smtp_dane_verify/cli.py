@@ -7,9 +7,12 @@ from smtp_dane_verify.dns_records import get_tlsa_record, filter_tlsa_resource_r
 from smtp_dane_verify.verification import verify, verify_tlsa_resource_record
 
 
-def main():
+def main() -> int:
     # Create the argument parser
-    parser = argparse.ArgumentParser(usage="Process some parameters.")
+    parser = argparse.ArgumentParser(
+        prog='danesmtp',
+        description="Verify that your DANE records and your SMTP server are configured correctly."
+    )
 
     # Add the -a/--address argument
     parser.add_argument(
@@ -34,6 +37,14 @@ def main():
         help='Path to the `openssl` binary, default: "openssl"',
     )
 
+    parser.add_argument(
+        "-j",
+        "--json",
+        default=False,
+        action='store_true',
+        help='Output the verification result as JSON to STDOUT'
+    )
+
     # Add a non-option hostname argument
     parser.add_argument(
         "hostname", type=str, help="The SMTP server hostname (required)"
@@ -42,8 +53,17 @@ def main():
     # Parse the arguments
     args = parser.parse_args()
     result = verify(args.hostname, openssl=args.openssl)
-    print(result)
+    if args.json == True:
+        import json
+        print(json.dumps(result.dict()))
+    else:
+        print(result)
+    if result.is_valid == True:
+        return 0
+    else:
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    retval = main()
+    exit(retval)
