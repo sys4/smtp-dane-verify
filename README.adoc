@@ -3,18 +3,18 @@
 
 == What is SMTP-DANE-Verify ?
 
-Problems with DANE usally stem from TLSA Resource Records that don't match the
-SMTP services x509 certificate fingerprint. This happens if not only the
+Problems with DANE usally stem from TLSA Resource Records (TLSA-RR) that don't match
+the SMTP service's x509 certificate fingerprint. This happens if not only the
 certificate was renewed, but also the private key because then the certificates
 fingerprint changes. It also happens if a certificate from a new vendor is used
 in production and, of course, also if those creating the TLSA Resource Record
 get something wrong and the TLSA record doesn't match right from the start.
-Whatever reason if no TLSA Resource Record matches DANE verification will fail
+Whatever reason if no TLSA-RR matches DANE verification will fail
 and DANE verifying servers will not send messages to a mismatching SMTP service.
 
 SMTP DANE Verify will not prevent you from publishing mismatching TLSA Resource
 Records, but it will help you to detect that there is a mismatch. It provides a
-service that verifies one of more TLSA Resource Records, published for a SMTP
+service that verifies one of more TLSA-RRs, published for a SMTP
 service, match the service's x509 certificate fingerprint.
 
 Use it as external probing service in your monitoring platform. Tell it which
@@ -102,11 +102,11 @@ that and binds smtp-dane-verify explicitly on `::1`. Still it exposes port
 [source,yaml]
 .docker-compose.yml
 ----
-name: smtp-tlsa-verify
+name: smtp-dane-verify
 services:
   smtp-tlsa-verify:
-    image: sys4ag/smtp-tlsa-verify
-    container_name: smtp-tlsa-verify
+    image: sys4ag/smtp-dane-verify
+    container_name: smtp-dane-verify
     environment:
       APIKEY: SAsMTaxKPbTZwD0c25cCZE/JXJAtqi
     ports:
@@ -115,8 +115,8 @@ services:
 ----
 
 In this example all docker instances are located in `/opt/$CONTAINER` on the
-host machine. To start smtp-tlsa-verify either change into
-`/opt/smtp-tlsa-verify` and excute:
+host machine. To start smtp-dane-verify either change into
+`/opt/smtp-dane-verify` and excute:
 
 ----
 % docker up -d
@@ -146,16 +146,16 @@ WantedBy=multi-user.target
 ----
 
 Then use the systemd service template and create a systemd unit file for
-`smtp-tlsa-verify` like this:
+`smtp-dane-verify` like this:
 
 ----
-% systemctl enable --now docker-compose@smtp-tlsa-verify.service
+% systemctl enable --now docker-compose@smtp-dane-verify.service
 ----
 
-This will enable *and* start the service. If you start `smtp-tlsa-verify` for
+This will enable *and* start the service. If you start `smtp-dane-verify` for
 the first time, docker will initially download the container
-`sys4ag/smtp-tlsa-verify` and then it will start it. If this step was
-successfull you will be able to verify `smtp-tlsa-verify` has bound itself to
+`sys4ag/smtp-dane-verify` and then it will start it. If this step was
+successfull you will be able to verify `smtp-dane-verify` has bound itself to
 port `3000/tcp` listening on IPv6 only:
 
 [source,console]
@@ -165,7 +165,7 @@ COMMAND      PID USER FD   TYPE  DEVICE SIZE/OFF NODE NAME
 docker-pr 481892 root 7u  IPv6 3259319      0t0  TCP *:3000 (LISTEN)
 ----
 
-Your `smtp-tlsa-verify` docker container should now be ready to probe hosts.
+Your `smtp-dane-verify` docker container should now be ready to probe hosts.
 Verify it works using the following command and your personal APIKEY:
 
 [source,console]
@@ -177,7 +177,7 @@ curl --header "x-apikey: SAsMTaxKPbTZwD0c25cCZE/JXJAtqi" \
     http://[::1]:3000/verify/
 ----
 
-Upon return `smtp-tlsa-verify` will output
+Upon return `smtp-dane-verify` will output
 https://www.rfc-editor.org/rfc/rfc8259[RFC 8259] formatted JSON data:
 
 [source,json]
@@ -196,7 +196,7 @@ https://www.rfc-editor.org/rfc/rfc8259[RFC 8259] formatted JSON data:
 }
 ----
 
-If `smtp-tlsa-verify` works like this for you you can start integrating it into
+If `smtp-dane-verify` works like this for you you can start integrating it into
 your monitoring service.
 
 == Monitoring services
@@ -209,12 +209,12 @@ Uptime Kuma is an easy-to-use self-hosted monitoring tool.
 .Uptime Kuma "Add New Monitor" dialogue
 image::assets/kuma_add_new_monitor.png[]
 
-Follow these steps to integrate `smtp-tlsa-verify` into Uptime Kuma:
+Follow these steps to integrate `smtp-dane-verify` into Uptime Kuma:
 
 . Choose menu:Add New Monitor[] and select menu:HTTP(s) - Json Query[] as
   menu:Monitor Type[] in the
   menu:General[] section of the menu:Add New Monitor[] dialogue. 
-. Give the Monitor a menu:Friendly Name[] e.g. `SMTP TLSA Verify`.
+. Give the Monitor a menu:Friendly Name[] e.g. `SMTP DANE Verify`.
 . Enter `http://[::1]:3000/verify/` as menu:URL[].
 . Enter `is_valid` into the menu:Json Query[] form field
 . Enter `true` in the menu:Expected Value[] form field.

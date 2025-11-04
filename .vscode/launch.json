@@ -9,10 +9,11 @@
             "name": "Python Debugger: Module",
             "type": "debugpy",
             "request": "launch",
-            "module": "smtp_tlsa_verify.cli",
+            "module": "smtp_dane_verify.cli",
             "args": [
-                "example.com",
-                "--openssl", "/nix/store/.../bin/openssl"
+                "mail.sys4.de",
+                "--nameserver", "1.1.1.1",
+                "--openssl", "/nix/store/6gxy23yr8d0z9i94b0g8mscs41bcngzn-openssl-3.4.1-bin/bin/openssl"
             ]
         }
     ]
