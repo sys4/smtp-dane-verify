@@ -1,10 +1,12 @@
 # From the RFC: The Certificate Usage field:  Section 2.1.1 of [RFC6698] specifies
 # four values: PKIX-TA(0), PKIX-EE(1), DANE-TA(2), and DANE-EE(3).
-
+import logging
 import argparse
 
-from smtp_dane_verify.dns_records import get_tlsa_record, filter_tlsa_resource_records
-from smtp_dane_verify.verification import verify, verify_tlsa_resource_record
+from smtp_dane_verify.verification import verify
+
+logging.basicConfig(level=logging.DEBUG)
+log = logging.getLogger('main')
 
 
 def main() -> int:
@@ -38,6 +40,21 @@ def main() -> int:
     )
 
     parser.add_argument(
+        "-n",
+        "--nameserver",
+        type=str,
+        default="",
+        help='Optional IP address of an external nameserver, by default the default resolver will be used.',
+    )
+
+    parser.add_argument(
+        "--no-strict-dnssec",
+        default=False,
+        action='store_true',
+        help='Relax on the DNSSEC verification of the TLSA records.'
+    )
+
+    parser.add_argument(
         "-j",
         "--json",
         default=False,
@@ -52,7 +69,10 @@ def main() -> int:
 
     # Parse the arguments
     args = parser.parse_args()
-    result = verify(args.hostname, openssl=args.openssl)
+    external_resolver = None
+    if args.nameserver != '':
+        external_resolver = args.nameserver
+    result = verify(args.hostname, disable_dnssec=args.no_strict_dnssec, external_resolver=external_resolver, openssl=args.openssl)
     if args.json == True:
         import json
         print(json.dumps(result.dict()))

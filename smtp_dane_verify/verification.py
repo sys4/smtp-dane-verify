@@ -5,15 +5,19 @@ from typing import Optional, List
 import dns.rdtypes.ANY.TLSA
 import pydantic
 
+
 from smtp_dane_verify.dns_records import (
     TlsaRecordError,
     filter_tlsa_resource_records,
     get_tlsa_record,
 )
+from smtp_dane_verify.dnssec import query_dnssec, DNSSECError
 
 
 class VerificationResult(pydantic.BaseModel):
     is_valid: bool = False
+    dnssec_valid: bool = False
+    dnssec_status: str = ""
     protocol_version: Optional[str] = None
     hostname: Optional[str] = None
     ciphersuite: Optional[str] = None
@@ -117,9 +121,12 @@ def verify_tlsa_resource_record(
         )
 
 
-def verify(hostname: str, openssl: Optional[str] = None) -> VerificationResult:
+def verify(hostname: str, 
+           disable_dnssec: bool=False, 
+           external_resolver: Optional[str] = None,
+           openssl: Optional[str]=None) -> VerificationResult:
     try:
-        answers = get_tlsa_record(hostname)
+        answers, dnssec_status, dnssec_message = get_tlsa_record(hostname, external_resolver)
     except TlsaRecordError as err:
         result = VerificationResult(hostname=hostname)
         result.message = f"{err}"
@@ -127,4 +134,11 @@ def verify(hostname: str, openssl: Optional[str] = None) -> VerificationResult:
 
     filtered_answers = filter_tlsa_resource_records(answers)
     result = verify_tlsa_resource_record(hostname, filtered_answers, openssl=openssl)
+
+    if disable_dnssec is False:
+        result.dnssec_status = dnssec_message
+        result.dnssec_valid = dnssec_status
+        # TODO: Set the final result 'is_valid' to False if strict DNSSEC is enabled.
+    else:
+        pass
     return result

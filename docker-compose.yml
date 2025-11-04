@@ -1,0 +1,16 @@
+name: smtp-tlsa-verify
+services:
+  unbound:
+    image: mvance/unbound:latest
+    container_name: unbound
+    restart: always
+  smtp-tlsa-verify:
+    image: sys4ag/smtp-dane-verify
+    container_name: smtp-dane-verify
+    environment:
+      APIKEY: SAsMTaxKPbTZwD0c25cCZE/JXJAtqi
+      NAMESERVER: unbound
+    ports:
+      - "3000:3000"
+    restart: always
+

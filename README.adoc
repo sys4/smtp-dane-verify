@@ -37,7 +37,7 @@ The shell status code of the command is 0 when validation is completed succesful
 usage: danesmtp [-h] [-a ADDRESS] [-u USAGES] [-o OPENSSL] [-j] hostname
 
 Verify that your DANE records and your SMTP server are configured correctly.
-----
+
 positional arguments:
   hostname              The SMTP server hostname (required)
 
