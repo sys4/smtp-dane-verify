@@ -1,20 +1,60 @@
-from typing import List
+import logging
+import traceback
+import sys
+from typing import List, Optional
 
 import dns.resolver
 import dns.rdtypes.ANY.TLSA
+from dns.edns import EDECode
+from dns.flags import Flag
+
+from smtp_dane_verify.external_resolver import resolve
+
+log = logging.getLogger(__name__)
 
 
 class TlsaRecordError(Exception):
     pass
 
 
-def get_tlsa_record(hostname):
+
+DNSSEC_BOGUS_ERROR_CODES = [
+    EDECode.DNSSEC_BOGUS,
+    EDECode.SIGNATURE_EXPIRED,
+    EDECode.SIGNATURE_NOT_YET_VALID,
+    EDECode.DNSKEY_MISSING,
+    EDECode.RRSIGS_MISSING,
+    EDECode.NO_ZONE_KEY_BIT_SET,
+    EDECode.NSEC_MISSING,
+]
+
+
+def check_dnssec_status(message) -> tuple[bool, str]:
+    """
+    Helper function for resolve().
+    """
+    for error in message.extended_errors():
+        if error.code in DNSSEC_BOGUS_ERROR_CODES:
+            return (False, f'bogus, EDE error code {error.code}')
+    if message.flags & Flag.AD:
+        return (True, 'secure')
+    else:
+        return (False, 'insecure, AD flag not set')
+
+
+def get_tlsa_record(hostname, external_resolver: Optional[str]=None) -> tuple[dns.resolver.Answer, bool, str]:
     query = f"_25._tcp.{hostname}"
     try:
-        # Perform the DNS query for the TLSA record
-        tlsa_records = dns.resolver.resolve(query, "TLSA")
-        # Extract and return the TLSA records
-        return tlsa_records
+        if external_resolver is None:
+            # Perform the DNS query for the TLSA record
+            tlsa_records = dns.resolver.resolve(query, "TLSA")
+            log.debug("Using default resolver.")
+        else:
+            tlsa_records = resolve(external_resolver, query, "TLSA")
+        dnssec_status, dnssec_message = check_dnssec_status(tlsa_records.response)
+        return tlsa_records, dnssec_status, dnssec_message
+        # Return the TLSA records
+#        return tlsa_records, False, 
     except dns.resolver.NoAnswer:
         raise TlsaRecordError(f"No TLSA record found for {query}")
     except dns.resolver.NXDOMAIN:
@@ -22,6 +62,7 @@ def get_tlsa_record(hostname):
     except dns.resolver.Timeout:
         raise TlsaRecordError(f"Timeout while querying {query}")
     except Exception as e:
+        traceback.print_exc(file=sys.stdout)
         raise TlsaRecordError(f"An error occurred: {e}")
 
 
@@ -32,7 +73,7 @@ def filter_tlsa_resource_records(
     matching_types: List[int] = [0, 1, 2],
 ) -> List[dns.rdtypes.ANY.TLSA.TLSA]:
     """
-    Filter the answers from get_tlsa_record, only use the
+    Filter the answers from get_tlsa_record, only use the ones we need.
     """
     filtered_answers = []
     for answer in answers:

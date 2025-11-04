@@ -6,6 +6,8 @@ This is a checklist / list of steps meant for the maintainer of this package.
 
 - Change the version number in pyproject.toml
 - Change the version number in smtp_dane_verify/api.py
+- Commit and push the changes
+- Tag the last commit with 
 - run `make release`, this will
     - create a Python package for PyPI
     - create a Docker image for linux/amd64 and linux/arm64, tagged with the package version and 'latest'

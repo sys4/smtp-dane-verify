@@ -1,5 +1,6 @@
 import os
 import uuid
+import logging
 
 import pydantic
 from fastapi import FastAPI, Request, Depends
@@ -8,6 +9,8 @@ from fastapi.openapi.utils import get_openapi
 
 from smtp_dane_verify.verification import verify, VerificationResult
 
+log = logging.getLogger("uvicorn.error")
+
 DESCRIPTION = '''
 This is API verifies TLSA Resource Records, used for DANE with e-mail servers.
 
@@ -15,6 +18,7 @@ This project is sponsored by sys4 AG, Germany
 '''
 API_TITLE = "SMTP-TLSA Resource Record Verification API"
 API_VERSION = "0.1.2"
+
 
 app = FastAPI(
     title=API_TITLE,
@@ -27,12 +31,23 @@ app = FastAPI(
 
 OPENSSL_PATH = os.environ.get('OPENSSLPATH', None)
 API_KEY = os.environ.get('APIKEY', None)
+NAMESERVER = os.environ.get('NAMESERVER', None)
+ENV_NO_STRICT_DNSSEC = os.environ.get('NO_STRICT_DNSSEC', 'False')
 
 if API_KEY is None:
     API_KEY = str(uuid.uuid4())
-    print(f'*** EnvVar "APIKEY=..." not found, API key will automatically be set to: {API_KEY}')
-
+    log.warning(f'*** EnvVar "APIKEY=..." not found, API key will automatically be set to: {API_KEY}')
 API_KEYS = [API_KEY]
+
+EXTERNAL_RESOLVER=None
+if NAMESERVER is not None:
+    EXTERNAL_RESOLVER = NAMESERVER.strip()
+    log.info(f'Will use external nameserver `{EXTERNAL_RESOLVER}`')
+
+NO_STRICT_DNSSEC = False
+if ENV_NO_STRICT_DNSSEC.strip().lower() in ['true', 'on', 'yes', '1']:
+    log.info('NO_STRICT_DNSSEC is true, strict DNSSEC checking will be disabled.')
+    NO_STRICT_DNSSEC = True
 
 
 from fastapi import HTTPException, status, Security, FastAPI
@@ -81,9 +96,14 @@ class VerificationRequest(pydantic.BaseModel):
 
 
 @app.post("/verify/")
-def verify_hostname(verification_req: VerificationRequest, api_key_header: str = Depends(api_key_header), api_key_query: str = Depends(api_key_query)) -> VerificationResult:
+def verify_hostname(verification_req: VerificationRequest,
+                    api_key_header: str = Depends(api_key_header),
+                    api_key_query: str = Depends(api_key_query)) -> VerificationResult:
     check_api_key(api_key_query, api_key_header)
-    result = verify(verification_req.hostname, openssl=OPENSSL_PATH)
+    result = verify(verification_req.hostname, 
+                    openssl=OPENSSL_PATH,
+                    external_resolver=EXTERNAL_RESOLVER,
+                    disable_dnssec=NO_STRICT_DNSSEC)
     return result
 
 
