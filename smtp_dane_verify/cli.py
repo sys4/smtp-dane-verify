@@ -2,23 +2,40 @@
 # four values: PKIX-TA(0), PKIX-EE(1), DANE-TA(2), and DANE-EE(3).
 import logging
 import argparse
+from smtp_dane_verify.verification import \
+    VerificationResult, DomainVerificationResult, \
+    verify, verify_domain_servers
 
-from smtp_dane_verify.verification import verify
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger('main')
 
 
+def format_results(results: VerificationResult|DomainVerificationResult, format: str):
+    """
+    Formats the results and prints to STDOUT.
+    """
+    if format == 'json':
+        import json
+        print(results.model_dump_json())
+    elif format == 'text':
+        # Default format is 'text'
+        print(results)
+    else:
+        log.error('Unknown format "%s" specified.' % args.format)
+
 def main() -> int:
     # Create the argument parser
     parser = argparse.ArgumentParser(
         prog='danesmtp',
-        description="Verify that your DANE records and your SMTP server are configured correctly."
+        description="Verify that your DANE records and your SMTP server are configured correctly.",
+        add_help=False
     )
-
-    # Add the -a/--address argument
+    # Add the --help option back
     parser.add_argument(
-        "-a", "--address", type=str, required=False, help="The address parameter"
+        '--help',
+        action='store_true',
+        help='show this help message and exit'
     )
 
     # Add the -u/--usages argument with a default value of '2,3'
@@ -55,34 +72,71 @@ def main() -> int:
     )
 
     parser.add_argument(
-        "-j",
-        "--json",
-        default=False,
-        action='store_true',
-        help='Output the verification result as JSON to STDOUT'
+        "-f",
+        "--format",
+        type=str,
+        default='text',
+        help='Select the output format. Available formats: json, text',
     )
 
     # Add a non-option hostname argument
     parser.add_argument(
-        "hostname", type=str, help="The SMTP server hostname (required)"
+        "-h", 
+        "--hostname",
+        "--host",
+        type=str,
+        default=None,
+        help="The SMTP server hostname to be checked (either --hostname or --domain  is required)"
+    )
+
+    # Add the -a/--address argument
+    parser.add_argument(
+        "-a",
+        "--address", 
+        type=str, 
+        required=False, 
+        help="Overwrite the address of the mail server, only to be used with --hostname."
+    )
+
+    # Add a non-option hostname argument
+    parser.add_argument(
+        "-d",
+        "--domain",
+        type=str,
+        default=None,
+        help="The domain to be checked (either --hostname or --domain  is required)"
     )
 
     # Parse the arguments
     args = parser.parse_args()
+
+    if args.help:
+        parser.print_help()
+        return 128
+
+    if args.hostname is None and args.domain is None:
+        parser.print_usage()
+        log.error("You must specify either `--hostname/-h` or `--domain/-d` parameters.")
+        return 1
+
     external_resolver = None
     if args.nameserver != '':
         external_resolver = args.nameserver
-    result = verify(args.hostname, disable_dnssec=args.no_strict_dnssec, external_resolver=external_resolver, openssl=args.openssl)
-    if args.json == True:
-        import json
-        print(json.dumps(result.dict()))
-    else:
-        print(result)
-    if result.is_valid == True:
-        return 0
-    else:
-        return 1
 
+    if args.hostname is not None:
+        result = verify(args.hostname, disable_dnssec=args.no_strict_dnssec, external_resolver=external_resolver, openssl=args.openssl)
+        format_results(result, args.format)
+        if result.is_valid == True:
+            return 0
+        else:
+            return 1
+    elif args.domain is not None:
+        result = verify_domain_servers(args.domain, disable_dnssec=args.no_strict_dnssec, external_resolver=external_resolver, openssl=args.openssl)
+        format_results(result, args.format)
+        if result.all_valid == True:
+            return 0
+        else:
+            return 1
 
 if __name__ == "__main__":
     retval = main()

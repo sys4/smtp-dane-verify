@@ -10,6 +10,7 @@ from smtp_dane_verify.dns_records import (
     TlsaRecordError,
     filter_tlsa_resource_records,
     get_tlsa_record,
+    get_mx_records,
 )
 from smtp_dane_verify.dnssec import query_dnssec, DNSSECError
 
@@ -141,4 +142,41 @@ def verify(hostname: str,
         # TODO: Set the final result 'is_valid' to False if strict DNSSEC is enabled.
     else:
         pass
+    return result
+
+
+class DomainVerificationResult(pydantic.BaseModel):
+    all_valid: bool = False
+    dnssec_valid: Optional[bool] = False
+    domain: Optional[str] = None
+    mail_exchangers: List[VerificationResult] = []
+
+
+def verify_domain_servers(domain: str, 
+                  disable_dnssec: bool=False, 
+                  external_resolver: Optional[str] = None,
+                  openssl: Optional[str]=None) -> DomainVerificationResult:
+    """
+    Verify all the MX records of one domain.
+    """
+    mailservers, dnssec_status, dnssec_message = get_mx_records(domain, external_resolver)
+    result = DomainVerificationResult(domain=domain)
+
+    for server in mailservers:
+        clean_server = server.strip('.')
+        server_result = verify(clean_server, disable_dnssec, external_resolver, openssl)
+        result.mail_exchangers.append(server_result)
+
+    # check all results for determining if all_valid is True.
+    result.all_valid = all([mx.is_valid for mx in result.mail_exchangers])
+    
+    # check the dnssec_status of all results:
+    result.dnssec_valid = all(
+        # MX record query
+        [dnssec_status] +
+        # TLSA-RR queries
+        [mx.dnssec_valid for mx in result.mail_exchangers]
+    )
+
+    # We are done here.
     return result

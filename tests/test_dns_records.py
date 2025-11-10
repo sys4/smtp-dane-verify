@@ -6,7 +6,13 @@ import pytest
 import dns.resolver  # Will be mocked
 
 # Unit under test
-from smtp_dane_verify.dns_records import TlsaRecordError, filter_tlsa_resource_records, get_tlsa_record
+from smtp_dane_verify.dns_records import TlsaRecordError, filter_tlsa_resource_records, get_tlsa_record, get_mx_records
+
+
+class TestGetMXRecords:
+    def test_get_mx_records(self):
+        res = get_mx_records('uwekamper.de', '1.1.1.1')
+        print(res)
 
 
 class TestGetTLSARecord:

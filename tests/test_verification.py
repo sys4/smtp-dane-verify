@@ -1,7 +1,7 @@
 import subprocess
 from dataclasses import dataclass
 from unittest.mock import patch
-from smtp_dane_verify.verification import verify_tlsa_resource_record
+from smtp_dane_verify.verification import verify_tlsa_resource_record, verify_domain
 
 @dataclass
 class FakeTlsaRecord:
@@ -60,3 +60,8 @@ def test_verify_tlsa_resource_record_timeout():
         mock_call.assert_called_once_with(' '.join(command), stdin=-1, stdout=-1, stderr=-1, shell=True)
         assert result.is_valid == False
         assert result.message == expected_msg
+
+
+def test_verify_domain():
+    res = verify_domain('uwekamper.de', '1.1.1.1')
+    assert res != None
