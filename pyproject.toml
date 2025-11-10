@@ -8,7 +8,9 @@ license-files = ["LICENSE.*"]
 dependencies = [
     "cryptography>=45.0.6",
     "dnspython>=2.7.0",
+    "fastapi>=0.116.1",
     "pydantic>=2.11.7",
+    "uvicorn>=0.35.0",
 ]
 classifiers = ["License :: OSI Approved :: GNU Affero General Public License v3"]
 

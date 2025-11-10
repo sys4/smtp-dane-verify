@@ -17,6 +17,9 @@ class TlsaRecordError(Exception):
     pass
 
 
+class MxRecordError(Exception):
+    pass
+
 
 DNSSEC_BOGUS_ERROR_CODES = [
     EDECode.DNSSEC_BOGUS,
@@ -42,7 +45,7 @@ def check_dnssec_status(message) -> tuple[bool, str]:
         return (False, 'insecure, AD flag not set')
 
 
-def get_tlsa_record(hostname, external_resolver: Optional[str]=None) -> tuple[dns.resolver.Answer, bool, str]:
+def get_tlsa_record(hostname: str, external_resolver: Optional[str]=None) -> tuple[dns.resolver.Answer, bool, str]:
     query = f"_25._tcp.{hostname}"
     try:
         if external_resolver is None:
@@ -53,8 +56,7 @@ def get_tlsa_record(hostname, external_resolver: Optional[str]=None) -> tuple[dn
             tlsa_records = resolve(external_resolver, query, "TLSA")
         dnssec_status, dnssec_message = check_dnssec_status(tlsa_records.response)
         return tlsa_records, dnssec_status, dnssec_message
-        # Return the TLSA records
-#        return tlsa_records, False, 
+
     except dns.resolver.NoAnswer:
         raise TlsaRecordError(f"No TLSA record found for {query}")
     except dns.resolver.NXDOMAIN:
@@ -64,6 +66,37 @@ def get_tlsa_record(hostname, external_resolver: Optional[str]=None) -> tuple[dn
     except Exception as e:
         traceback.print_exc(file=sys.stdout)
         raise TlsaRecordError(f"An error occurred: {e}")
+
+
+def get_mx_records(domain: str, external_resolver: Optional[str]=None) -> tuple[List[str], bool, str]:
+    try:
+        if external_resolver is None:
+            # Perform the DNS query for the TLSA record
+            mx_record = dns.resolver.resolve(domain, "MX")
+            mailserver_set = mx_record.rrset
+            log.debug("Using default resolver.")
+        else:
+            mx_record = resolve(external_resolver, domain, "MX")
+            mailserver_set = mx_record.rrset
+
+        dnssec_status, dnssec_message = check_dnssec_status(mx_record.response)
+
+        mailservers = []
+        for i in mailserver_set:
+            mx_record = f'{i.exchange}'
+            mailservers.append(mx_record)
+
+        return mailservers, dnssec_status, dnssec_message
+ 
+    except dns.resolver.NoAnswer:
+        raise MxRecordError(f"No MX records found for {domain}")
+    except dns.resolver.NXDOMAIN:
+        raise MxRecordError(f"Domain {domain} does not exist")
+    except dns.resolver.Timeout:
+        raise MxRecordError(f"Timeout while querying {domain}")
+    except Exception as e:
+        traceback.print_exc(file=sys.stdout)
+        raise MxRecordError(f"An error occurred: {e}")
 
 
 def filter_tlsa_resource_records(

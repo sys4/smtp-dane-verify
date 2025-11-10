@@ -3,14 +3,15 @@
 
 == What is SMTP-DANE-Verify ?
 
-Problems with DANE usally stem from TLSA Resource Records (TLSA-RR) that don't match
-the SMTP service's x509 certificate fingerprint. This happens if not only the
-certificate was renewed, but also the private key because then the certificates
-fingerprint changes. It also happens if a certificate from a new vendor is used
-in production and, of course, also if those creating the TLSA Resource Record
-get something wrong and the TLSA record doesn't match right from the start.
-Whatever reason if no TLSA-RR matches DANE verification will fail
-and DANE verifying servers will not send messages to a mismatching SMTP service.
+Problems with DANE usally stem from TLSA Resource Records (TLSA-RR) that don't 
+matchcthe SMTP service's x509 certificate fingerprint. This happens if not only
+the certificate was renewed, but also the private key because then the 
+certificates fingerprint changes. It also happens if a certificate from a new
+vendor is used in production and, of course, also if those creating the TLSA 
+Resource Record get something wrong and the TLSA record doesn't match right
+from the start. Whatever reason if no TLSA-RR matches DANE verification will
+fail and DANE verifying servers will not send messages to a mismatching SMTP
+service.
 
 SMTP DANE Verify will not prevent you from publishing mismatching TLSA Resource
 Records, but it will help you to detect that there is a mismatch. It provides a
@@ -30,26 +31,32 @@ latter. It's hassle free.
 == Using the command-line interface (CLI) ==
 
 After installing the dane-smtp the command `danesmtp` is available.
-The shell status code of the command is 0 when validation is completed succesfully, 1 otherwise.
+The shell status code of the command is 0 when validation is completed 
+succesfully, 1 (or greater) otherwise.
 
 [source,console]
 % danesmtp --help
-usage: danesmtp [-h] [-a ADDRESS] [-u USAGES] [-o OPENSSL] [-j] hostname
+usage: danesmtp [--help] [-u USAGES] [-o OPENSSL] [-n NAMESERVER] [--no-strict-dnssec] [-f FORMAT] [-h HOSTNAME] [-a ADDRESS] [-d DOMAIN]
 
 Verify that your DANE records and your SMTP server are configured correctly.
 
-positional arguments:
-  hostname              The SMTP server hostname (required)
-
 options:
-  -h, --help            show this help message and exit
-  -a ADDRESS, --address ADDRESS
-                        The address parameter
+  --help                show this help message and exit
   -u USAGES, --usages USAGES
                         The usages parameter (default: 2,3)
   -o OPENSSL, --openssl OPENSSL
                         Path to the `openssl` binary, default: "openssl"
-  -j, --json            Output the verification result as JSON to STDOUT
+  -n NAMESERVER, --nameserver NAMESERVER
+                        Optional IP address of an external nameserver, by default the default resolver will be used.
+  -f FORMAT, --format FORMAT
+                        Select the output format. Available formats: json, text
+  -h HOSTNAME, --hostname HOSTNAME, --host HOSTNAME
+                        The SMTP server hostname to be checked (either --hostname or --domain is required)
+  -a ADDRESS, --address ADDRESS
+                        Overwrite the address of the mail server, only to be used with --hostname.
+  -d DOMAIN, --domain DOMAIN
+                        The domain to be checked (either --hostname or --domain is required)
+  --no-strict-dnssec    Relax on the DNSSEC verification of the TLSA records.
 ----
 
 The CLI can easily be used with other tool by switcing the output format to JSON:
@@ -71,7 +78,8 @@ The CLI can easily be used with other tool by switcing the output format to JSON
 }
 ----
 
-With additional toolin like "jq" you can easily extract data from the JSON output, example:
+With additional toolin like "jq" you can easily extract data from the JSON output,
+example:
 
 [source,console]
 ----

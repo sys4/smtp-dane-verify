@@ -7,7 +7,10 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
 
-from smtp_dane_verify.verification import verify, VerificationResult
+from smtp_dane_verify.verification import (
+    verify, VerificationResult,
+    verify_domain_servers, DomainVerificationResult,
+)
 
 log = logging.getLogger("uvicorn.error")
 
@@ -91,12 +94,20 @@ def welcome_message(request: Request, api_key_header: str = Depends(api_key_head
     return {"message": f"Welcome to the SMTP TLSA Resource Record verification service. Please see docs: {url.scheme}://{url.netloc}{os.path.join(url.path, '/docs/')}"}
 
 
-class VerificationRequest(pydantic.BaseModel):
+class HostnameVerificationRequest(pydantic.BaseModel):
     hostname: str
 
 
-@app.post("/verify/")
-def verify_hostname(verification_req: VerificationRequest,
+class DomainVerificationRequest(pydantic.BaseModel):
+    """
+    Mostly the same as HostnameVerificationRequest, but used when verifying
+    a whole domain.
+    """
+    domain: str
+
+
+@app.post("/verify_host/")
+def verify_hostname(verification_req: HostnameVerificationRequest,
                     api_key_header: str = Depends(api_key_header),
                     api_key_query: str = Depends(api_key_query)) -> VerificationResult:
     check_api_key(api_key_query, api_key_header)
@@ -104,6 +115,18 @@ def verify_hostname(verification_req: VerificationRequest,
                     openssl=OPENSSL_PATH,
                     external_resolver=EXTERNAL_RESOLVER,
                     disable_dnssec=NO_STRICT_DNSSEC)
+    return result
+
+
+@app.post("/verify/")
+def verify_domain(verification_req: DomainVerificationRequest,
+                  api_key_header: str = Depends(api_key_header),
+                  api_key_query: str = Depends(api_key_query)) -> DomainVerificationResult:
+    check_api_key(api_key_query, api_key_header)
+    result = verify_domain_servers(verification_req.domain, 
+                           openssl=OPENSSL_PATH,
+                           external_resolver=EXTERNAL_RESOLVER,
+                           disable_dnssec=NO_STRICT_DNSSEC)
     return result
 
 
