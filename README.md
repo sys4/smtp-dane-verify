@@ -112,7 +112,7 @@ Upon return `smtp-tlsa-verify` will output [RFC
 8259](https://www.rfc-editor.org/rfc/rfc8259) formatted JSON data:
 
     {
-       "is_valid":true,
+       "host_dane_verified":true,
        "protocol_version":"TLSv1.3",
        "hostname":"mail2.ietf.org.",
        "ciphersuite":"TLS_AES_256_GCM_SHA384",
@@ -149,7 +149,7 @@ Follow these steps to integrate `smtp-tlsa-verify` into Uptime Kuma:
 
 3.  Enter `http://[::1]:3000/verify/` as URL.
 
-4.  Enter `is_valid` into the Json Query form field
+4.  Enter `host_dane_verified` into the Json Query form field
 
 5.  Enter `true` in the Expected Value form field.
 

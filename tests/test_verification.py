@@ -59,7 +59,7 @@ def test_verify_tlsa_resource_record_timeout():
     ) as mock_call:
         result = verify_tlsa_resource_record('example.com', fake_answers, openssl='/mock/bin/openssl')
         mock_call.assert_called_once_with(cmd, stdin=-1, stdout=-1, stderr=-1, shell=True)
-        assert result.is_valid == False
+        assert result.host_dane_verified == False
         assert result.log_messages == []
 
 

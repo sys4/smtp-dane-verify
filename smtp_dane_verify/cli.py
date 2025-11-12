@@ -141,7 +141,7 @@ def main() -> int:
     if args.hostname is not None:
         result = verify(args.hostname, disable_dnssec=args.no_strict_dnssec, external_resolver=external_resolver, openssl=args.openssl)
         format_results(result, args.format)
-        if result.is_valid == True:
+        if result.host_dane_verified == True:
             return 0
         else:
             return 1
