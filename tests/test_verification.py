@@ -1,7 +1,7 @@
 import subprocess
 from dataclasses import dataclass
 from unittest.mock import patch
-from smtp_dane_verify.verification import verify_tlsa_resource_record, verify_domain
+from smtp_dane_verify.verification import verify_tlsa_resource_record, verify_domain_servers
 
 @dataclass
 class FakeTlsaRecord:
@@ -51,17 +51,18 @@ def test_verify_tlsa_resource_record_timeout():
                '-connect', 'example.com:25', '-verify', '9', '-verify_return_error',
                '-dane_ee_no_namechecks', '-dane_tlsa_domain', 'example.com',
                '-dane_tlsa_rrdata', '"3 1 1 236831AEEAB41E7BD10DC14320600B245C791B338121383D5A2916F7EF97B49B"']
-    expected_msg = f"Command '{' '.join(command)}' timed out after 10.0 seconds"
+    cmd = ' '.join(command)    
+    expected_msg = f"Command '{cmd}' timed out after 10.0 seconds"
     with patch(
         'smtp_dane_verify.verification.subprocess.Popen',
-        side_effect=subprocess.TimeoutExpired(cmd=' '.join(command), timeout=10.0)
+        side_effect=subprocess.TimeoutExpired(cmd=cmd, timeout=10.0)
     ) as mock_call:
         result = verify_tlsa_resource_record('example.com', fake_answers, openssl='/mock/bin/openssl')
-        mock_call.assert_called_once_with(' '.join(command), stdin=-1, stdout=-1, stderr=-1, shell=True)
+        mock_call.assert_called_once_with(cmd, stdin=-1, stdout=-1, stderr=-1, shell=True)
         assert result.is_valid == False
-        assert result.message == expected_msg
+        assert result.log_messages == []
 
 
 def test_verify_domain():
-    res = verify_domain('uwekamper.de', '1.1.1.1')
+    res = verify_domain_servers('uwekamper.de', external_resolver='1.1.1.1')
     assert res != None

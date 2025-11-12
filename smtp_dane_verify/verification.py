@@ -1,3 +1,4 @@
+import logging
 import time
 import subprocess
 from typing import Optional, List
@@ -5,6 +6,7 @@ from typing import Optional, List
 import dns.rdtypes.ANY.TLSA
 import pydantic
 
+log = logging.getLogger(__name__)
 
 from smtp_dane_verify.dns_records import (
     TlsaRecordError,
@@ -27,7 +29,7 @@ class VerificationResult(pydantic.BaseModel):
     signature_type: Optional[str] = None
     verification: Optional[str] = None
     openssl_return_code: Optional[int] = None
-    message: Optional[str] = None
+    log_messages: list[str] = []
 
 
 def verify_tlsa_resource_record(
@@ -70,6 +72,7 @@ def verify_tlsa_resource_record(
         f"{hostname}",
     ] + rrdata
     input = b"QUIT\n"
+    log.debug("OpenSSL command: %s" % " ".join(sslopts))
     try:
         p = subprocess.Popen(
             " ".join(sslopts),
@@ -87,30 +90,35 @@ def verify_tlsa_resource_record(
             stdout, stderr = p.communicate(input=input, timeout=10.0)
             if stdout:
                 for line in stdout.decode().splitlines():
-                    print(line)
+                    log.debug("Got STDOUT line: %s" % repr(line))
             if stderr:
                 for line in stderr.decode().splitlines():
+                    log.debug("Got STDERR line: %s" % repr(line))
                     if line.startswith("Protocol version:"):
                         result.protocol_version = line.split(":", 1)[1].strip()
                         continue
-                    if line.startswith("Ciphersuite:"):
+                    elif line.startswith("Ciphersuite:"):
                         result.ciphersuite = line.split(":", 1)[1].strip()
                         continue
-                    if line.startswith("Peer certificate:"):
+                    elif line.startswith("Peer certificate:"):
                         result.peer_certificate = line.split(":", 1)[1].strip()
                         continue
-                    if line.startswith("Hash used:"):
+                    elif line.startswith("Hash used:"):
                         result.hash_used = line.split(":", 1)[1].strip()
                         continue
-                    if line.startswith("Signature type:"):
+                    elif line.startswith("Signature type:"):
                         result.signature_type = line.split(":", 1)[1].strip()
                         continue
-                    if line.startswith("Verification:"):
+                    elif line.startswith("Verification:"):
                         verification = line.split(":", 1)[1].strip()
                         result.verification = verification
                         if verification == "OK":
                             result.is_valid = True
                         continue
+                    else:
+                        result.log_messages.append(line)
+                        continue
+                    
         retval = p.wait()
         result.openssl_return_code = retval
         return result
@@ -130,10 +138,21 @@ def verify(hostname: str,
         answers, dnssec_status, dnssec_message = get_tlsa_record(hostname, external_resolver)
     except TlsaRecordError as err:
         result = VerificationResult(hostname=hostname)
-        result.message = f"{err}"
+        result.log_messages.append(f"{err}")
         return result
 
     filtered_answers = filter_tlsa_resource_records(answers)
+    # Some domains have TLSA-RRs with e.g. usage=1, we only allow usages "2" and "3".
+    if len(filtered_answers) == 0:
+        result = VerificationResult(hostname=hostname)
+        result.log_messages.append(
+            "No suitable TLSA resource records found, check the usage, selector, and matching type parameters."
+        )
+        if disable_dnssec is False:
+            result.dnssec_status = dnssec_message
+            result.dnssec_valid = dnssec_status
+        return result
+    
     result = verify_tlsa_resource_record(hostname, filtered_answers, openssl=openssl)
 
     if disable_dnssec is False:

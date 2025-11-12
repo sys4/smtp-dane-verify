@@ -1,6 +1,6 @@
 import unittest
 from dataclasses import dataclass
-from unittest.mock import patch
+from unittest.mock import patch, PropertyMock, MagicMock, Mock
 
 import pytest
 import dns.resolver  # Will be mocked
@@ -18,19 +18,43 @@ class TestGetMXRecords:
 class TestGetTLSARecord:
     @patch("smtp_dane_verify.dns_records.dns.resolver.resolve")
     def test_get_tlsa_record_success(self, mock_resolve):
+        FAKE_RR = "3 1 1 1234567890abcdef1234567890abcdef1234567890abcdef"
         # Mock the DNS resolver to return a sample TLSA record
-        mock_answer = unittest.mock.Mock()
-        mock_answer.to_text.return_value = (
-            "3 1 1 1234567890abcdef1234567890abcdef1234567890abcdef"
+        mock_record = Mock(spec=dns.rdtypes.ANY.TLSA.TLSA)
+        mock_record.to_text.return_value = FAKE_RR
+        mock_answer = MagicMock(
+            spec=dns.resolver.Answer,
+            response=PropertyMock(extended_errors=Mock(return_value=[])),
         )
-        mock_resolve.return_value = [mock_answer]
+        mock_answer.__getitem__.return_value = mock_record
+        mock_resolve.return_value = mock_answer
 
         # Call the function
-        result = get_tlsa_record("example.com")
+        result, dnssec_status, dnssec_message = get_tlsa_record("example.com")
 
         # Check the result
         assert result[0].to_text() \
-            == "3 1 1 1234567890abcdef1234567890abcdef1234567890abcdef"
+            == FAKE_RR
+        
+    @patch("smtp_dane_verify.dns_records.dns.resolver.resolve")
+    def test_get_tlsa_broken_record(self, mock_resolve):
+        BROKEN_RR = "1 1 0 627E3D0A43F91A7944714887E00BA630E0FC89597BF39FFD736D836A D62C6B01"
+        # Mock the DNS resolver to return a sample TLSA record
+        mock_record = Mock(spec=dns.rdtypes.ANY.TLSA.TLSA)
+        mock_record.to_text.return_value = BROKEN_RR
+        mock_answer = MagicMock(
+            spec=dns.resolver.Answer,
+            response=PropertyMock(extended_errors=Mock(return_value=[])),
+        )
+        mock_answer.__getitem__.return_value = mock_record
+        
+        mock_resolve.return_value = mock_answer
+        # Call the function
+        result, dnssec_status, dnssec_message = get_tlsa_record("_25._tcp.mail.zeromsg.com")
+
+        # Check the result
+        assert result[0].to_text() \
+            == "1 1 0 627E3D0A43F91A7944714887E00BA630E0FC89597BF39FFD736D836A D62C6B01"
 
     @patch("smtp_dane_verify.dns_records.dns.resolver.resolve")
     def test_get_tlsa_record_no_answer(self, mock_resolve):
