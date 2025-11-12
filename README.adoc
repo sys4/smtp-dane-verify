@@ -63,7 +63,7 @@ The CLI can easily be used with other tool by switcing the output format to JSON
 
 [source,console]
 ----
-% danesmtp -j mail.example.com
+% danesmtp -f json -h mail.example.com
 {
   "is_valid": true,
   "protocol_version": "TLSv1.2",
@@ -74,7 +74,7 @@ The CLI can easily be used with other tool by switcing the output format to JSON
   "signature_type": "RSA",
   "verification": "OK",
   "openssl_return_code": 0,
-  "message": null
+  "log_messages": []
 }
 ----
 
@@ -83,7 +83,7 @@ example:
 
 [source,console]
 ----
-% danesmtp -j mail.example.com | jq .verification
+% danesmtp -f json -h mail.example.com | jq .verification
 "OK"
 ----
 
@@ -200,7 +200,7 @@ https://www.rfc-editor.org/rfc/rfc8259[RFC 8259] formatted JSON data:
    "signature_type":"ECDSA",
    "verification":"OK",
    "openssl_return_code":0,
-   "message":null
+   "log_messages": []
 }
 ----
 

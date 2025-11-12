@@ -89,7 +89,6 @@ def check_api_key(
 @app.get("/")
 def welcome_message(request: Request, api_key_header: str = Depends(api_key_header), api_key_query: str = Depends(api_key_query)):
     check_api_key(api_key_query, api_key_header)
-    print(request.url.components)
     url = request.url
     return {"message": f"Welcome to the SMTP TLSA Resource Record verification service. Please see docs: {url.scheme}://{url.netloc}{os.path.join(url.path, '/docs/')}"}
 

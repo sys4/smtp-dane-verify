@@ -1,9 +1,9 @@
 import logging
 import time
 import subprocess
+import dns.rdtypes.ANY.TLSA
 from typing import Optional, List
 
-import dns.rdtypes.ANY.TLSA
 import pydantic
 
 log = logging.getLogger(__name__)

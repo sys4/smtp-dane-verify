@@ -7,22 +7,19 @@ from smtp_dane_verify.verification import \
     verify, verify_domain_servers
 
 
-logging.basicConfig(level=logging.DEBUG)
-log = logging.getLogger('main')
-
-
 def format_results(results: VerificationResult|DomainVerificationResult, format: str):
     """
     Formats the results and prints to STDOUT.
     """
     if format == 'json':
-        import json
         print(results.model_dump_json())
     elif format == 'text':
         # Default format is 'text'
         print(results)
     else:
-        log.error('Unknown format "%s" specified.' % args.format)
+        log = logging.getLogger('main')
+        log.error('Unknown format "%s" specified.' % format)
+
 
 def main() -> int:
     # Create the argument parser
@@ -36,6 +33,14 @@ def main() -> int:
         '--help',
         action='store_true',
         help='show this help message and exit'
+    )
+
+    parser.add_argument(
+        '-v',
+        '--verbose',
+        default=False,
+        action='store_true',
+        help='Enable more verbose logging (for debugging purposes).'
     )
 
     # Add the -u/--usages argument with a default value of '2,3'
@@ -109,6 +114,16 @@ def main() -> int:
 
     # Parse the arguments
     args = parser.parse_args()
+    log = None
+
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
+        log = logging.getLogger('main')
+        log.debug('DEBUG logging enabled.')
+    else:
+        logging.basicConfig(level=logging.INFO)
+        log = logging.getLogger('main')
+        log.debug('DEBUG logging enabled.')
 
     if args.help:
         parser.print_help()
@@ -137,6 +152,7 @@ def main() -> int:
             return 0
         else:
             return 1
+
 
 if __name__ == "__main__":
     retval = main()
