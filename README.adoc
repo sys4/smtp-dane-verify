@@ -65,7 +65,7 @@ The CLI can easily be used with other tool by switcing the output format to JSON
 ----
 % danesmtp -f json -h mail.example.com
 {
-  "is_valid": true,
+  "host_dane_verified": true,
   "protocol_version": "TLSv1.2",
   "hostname": "mail.example.com",
   "ciphersuite": "ECDHE-RSA-AES256-GCM-SHA384",
@@ -191,7 +191,7 @@ https://www.rfc-editor.org/rfc/rfc8259[RFC 8259] formatted JSON data:
 [source,json]
 ----
 {
-   "is_valid":true,
+   "host_dane_verified":true,
    "protocol_version":"TLSv1.3",
    "hostname":"mail2.ietf.org.",
    "ciphersuite":"TLS_AES_256_GCM_SHA384",
@@ -224,7 +224,7 @@ Follow these steps to integrate `smtp-dane-verify` into Uptime Kuma:
   menu:General[] section of the menu:Add New Monitor[] dialogue. 
 . Give the Monitor a menu:Friendly Name[] e.g. `SMTP DANE Verify`.
 . Enter `http://[::1]:3000/verify/` as menu:URL[].
-. Enter `is_valid` into the menu:Json Query[] form field
+. Enter `host_dane_verified` into the menu:Json Query[] form field
 . Enter `true` in the menu:Expected Value[] form field.
 . Then turn to the menu:HTTP Options[] section and add the host you want to
   probe as JSON DATA e.g. like this: `{ "hostname": "mail2.ietf.org" }`
