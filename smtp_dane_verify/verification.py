@@ -165,7 +165,7 @@ def verify(hostname: str,
 
 
 class DomainVerificationResult(pydantic.BaseModel):
-    all_valid: bool = False
+    all_hosts_dane_verified: bool = False
     dnssec_valid: Optional[bool] = False
     domain: Optional[str] = None
     mx_hosts: List[VerificationResult] = []
@@ -186,8 +186,8 @@ def verify_domain_servers(domain: str,
         server_result = verify(clean_server, disable_dnssec, external_resolver, openssl)
         result.mx_hosts.append(server_result)
 
-    # check all results for determining if all_valid is True.
-    result.all_valid = all([mx.host_dane_verified for mx in result.mx_hosts])
+    # check all results for determining if all_hosts_dane_verified is True.
+    result.all_hosts_dane_verified = all([mx.host_dane_verified for mx in result.mx_hosts])
     
     # check the dnssec_status of all results:
     result.dnssec_valid = all(
