@@ -148,7 +148,7 @@ def main() -> int:
     elif args.domain is not None:
         result = verify_domain_servers(args.domain, disable_dnssec=args.no_strict_dnssec, external_resolver=external_resolver, openssl=args.openssl)
         format_results(result, args.format)
-        if result.all_valid == True:
+        if result.all_hosts_dane_verified == True:
             return 0
         else:
             return 1
