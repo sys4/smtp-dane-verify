@@ -1,9 +1,10 @@
 import os
 import uuid
 import logging
+from typing import Annotated
 
 import pydantic
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Request, Response, Header, Depends
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
 
@@ -105,20 +106,57 @@ class DomainVerificationRequest(pydantic.BaseModel):
     domain: str
 
 
-@app.post("/verify_host/")
+class OpenMetricsResponse(Response):
+    media_type = "application/openmetrics-text; version=1.0.0; charset=utf-8"
+
+    def render(self, content: VerificationResult) -> bytes:
+        if type(content) == DomainVerificationResult:
+            text = "# TYPE dane_smtp_domain_verified gauge\n" \
+                   "# HELP dane_smtp_domain_verified Results of the DANE SMTP domain verification\n"
+            text += f'dane_smtp_domain_verified{{domain="{content.domain}"}} {1 if content.all_hosts_dane_verified else 0}\n'
+        else:
+            text = "# TYPE dane_smtp_host_verified gauge\n" \
+                   "# HELP dane_smtp_host_verified Results of the DANE SMTP verification\n"
+            text += f'dane_smtp_host_verified{{hostname="{content.hostname}"}} {1 if content.host_dane_verified else 0}\n'
+        
+        return text.encode('utf-8')
+
+
+@app.post("/verify_host/", response_model=VerificationResult)
 def verify_hostname(verification_req: HostnameVerificationRequest,
+                    format: str|None,
+                    accept: Annotated[str | None, Header()] = None,
                     api_key_header: str = Depends(api_key_header),
                     api_key_query: str = Depends(api_key_query)) -> VerificationResult:
     check_api_key(api_key_query, api_key_header)
+    
     result = verify(verification_req.hostname, 
                     openssl=OPENSSL_PATH,
                     external_resolver=EXTERNAL_RESOLVER,
                     disable_dnssec=NO_STRICT_DNSSEC)
-    return result
+    
+    if format is not None:
+        if format == 'json':
+            response_format = 'json'
+        elif format == 'openmetrics' or format == 'prometheus':
+            response_format = 'openmetrics'
+    elif accept is not None:
+        if accept.startswith('application/openmetrics-text'):
+            response_format = 'openmetrics'
+        if accept.startswith('application/json'):
+            response_format = 'openmetrics'
+
+    if response_format == 'openmetrics':
+        return OpenMetricsResponse(content=result)
+    else:
+        # Return JSON as the default
+        return result
 
 
 @app.post("/verify/")
 def verify_domain(verification_req: DomainVerificationRequest,
+                  format: str|None,
+                  accept: Annotated[str | None, Header()] = None,
                   api_key_header: str = Depends(api_key_header),
                   api_key_query: str = Depends(api_key_query)) -> DomainVerificationResult:
     check_api_key(api_key_query, api_key_header)
@@ -126,6 +164,20 @@ def verify_domain(verification_req: DomainVerificationRequest,
                            openssl=OPENSSL_PATH,
                            external_resolver=EXTERNAL_RESOLVER,
                            disable_dnssec=NO_STRICT_DNSSEC)
+    
+    if format is not None:
+        if format == 'json':
+            response_format = 'json'
+        elif format == 'openmetrics' or format == 'prometheus':
+            response_format = 'openmetrics'
+    elif accept is not None:
+        if accept.startswith('application/openmetrics-text'):
+            response_format = 'openmetrics'
+        if accept.startswith('application/json'):
+            response_format = 'openmetrics'
+
+    if response_format == 'openmetrics':
+        return OpenMetricsResponse(content=result)
     return result
 
 
