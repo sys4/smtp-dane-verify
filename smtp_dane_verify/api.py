@@ -187,6 +187,7 @@ def verify_hostname(verification_req: HostnameVerificationRequest,
     return format_output(result, query_params.format, accept)
 
 
+
 @app.post("/verify/")
 def verify_domain(verification_req: DomainVerificationRequest,
                   query_params: Annotated[QueryParams, Query()],
@@ -204,7 +205,6 @@ def verify_domain(verification_req: DomainVerificationRequest,
 
     # Return the result in the user-specified format
     return format_output(result, query_params.format, accept)
-
 
 @app.get("/docs", include_in_schema=False)
 async def get_documentation(api_key_header: str = Depends(api_key_header), api_key_query: str = Depends(api_key_query)):
