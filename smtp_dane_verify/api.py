@@ -1,10 +1,10 @@
 import os
 import uuid
 import logging
-from typing import Annotated
+from typing import Annotated, Literal, Optional
 
 import pydantic
-from fastapi import FastAPI, Request, Response, Header, Depends
+from fastapi import FastAPI, Request, Response, Header, Depends, Query
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
 
@@ -122,63 +122,88 @@ class OpenMetricsResponse(Response):
         return text.encode('utf-8')
 
 
+def format_output(
+        result: VerificationResult|DomainVerificationResult,
+        format_name: str|None = None,
+        accept_header: str|None=None) -> Response|OpenMetricsResponse|VerificationResult|DomainVerificationResult:
+    """
+    Format the result object according to the user-specified output format.
+    The default is JSON.
+
+    Other options:
+        - text
+        - openmetrics / prometheus
+    """
+    response_format = 'json'
+
+    if format_name is not None:
+        if format_name == 'text':
+            response_format = 'text'
+        elif format_name == 'openmetrics' or format_name == 'prometheus':
+            response_format = 'openmetrics'
+        else:
+            response_format = 'json'
+    elif accept_header is not None:
+        if accept_header.startswith('application/openmetrics-text'):
+            response_format = 'openmetrics'
+        if accept_header.startswith('text/plain'):
+            response_format = 'text'
+        if accept_header.startswith('application/json'):
+            response_format = 'json'
+
+    if response_format == 'openmetrics':
+        return OpenMetricsResponse(content=result)
+    elif response_format == 'text':
+        return Response(f"{result}\n".encode('utf-8'), media_type="text/plain")
+    # default: JSON
+    else:
+        return result
+
+
+class QueryParams(pydantic.BaseModel):
+    format: Optional[Literal['json', 'text', 'openmetrics', 'prometheos']] = pydantic.Field(None, title="bla")
+
+
+ACCEPT_HEADER_HELP_TEXT = "HTTP 'Accept' header, equivalent to the ?format=... parameter but takes a " \
+                          "MIME type, e.g. application/openmetrics-text"
+
+
 @app.post("/verify_host/", response_model=VerificationResult)
 def verify_hostname(verification_req: HostnameVerificationRequest,
-                    format: str|None,
-                    accept: Annotated[str | None, Header()] = None,
+                    query_params: Annotated[QueryParams, Query()],
+                    accept: Annotated[str | None, Header(alias='Accept', description=ACCEPT_HEADER_HELP_TEXT)] = None,
                     api_key_header: str = Depends(api_key_header),
                     api_key_query: str = Depends(api_key_query)) -> VerificationResult:
+    # Authentication
     check_api_key(api_key_query, api_key_header)
-    
+
+    # Do the actual verification
     result = verify(verification_req.hostname, 
                     openssl=OPENSSL_PATH,
                     external_resolver=EXTERNAL_RESOLVER,
                     disable_dnssec=NO_STRICT_DNSSEC)
     
-    if format is not None:
-        if format == 'json':
-            response_format = 'json'
-        elif format == 'openmetrics' or format == 'prometheus':
-            response_format = 'openmetrics'
-    elif accept is not None:
-        if accept.startswith('application/openmetrics-text'):
-            response_format = 'openmetrics'
-        if accept.startswith('application/json'):
-            response_format = 'openmetrics'
-
-    if response_format == 'openmetrics':
-        return OpenMetricsResponse(content=result)
-    else:
-        # Return JSON as the default
-        return result
+    # Return the result in the user-specified format
+    return format_output(result, query_params.format, accept)
 
 
 @app.post("/verify/")
 def verify_domain(verification_req: DomainVerificationRequest,
-                  format: str|None,
-                  accept: Annotated[str | None, Header()] = None,
+                  query_params: Annotated[QueryParams, Query()],
+                  accept: Annotated[str | None, Header(alias="Accept", description=ACCEPT_HEADER_HELP_TEXT)] = None,
                   api_key_header: str = Depends(api_key_header),
                   api_key_query: str = Depends(api_key_query)) -> DomainVerificationResult:
+    # Authentication
     check_api_key(api_key_query, api_key_header)
+
+    # Do the actual work
     result = verify_domain_servers(verification_req.domain, 
                            openssl=OPENSSL_PATH,
                            external_resolver=EXTERNAL_RESOLVER,
                            disable_dnssec=NO_STRICT_DNSSEC)
-    
-    if format is not None:
-        if format == 'json':
-            response_format = 'json'
-        elif format == 'openmetrics' or format == 'prometheus':
-            response_format = 'openmetrics'
-    elif accept is not None:
-        if accept.startswith('application/openmetrics-text'):
-            response_format = 'openmetrics'
-        if accept.startswith('application/json'):
-            response_format = 'openmetrics'
 
-    if response_format == 'openmetrics':
-        return OpenMetricsResponse(content=result)
-    return result
+    # Return the result in the user-specified format
+    return format_output(result, query_params.format, accept)
 
 
 @app.get("/docs", include_in_schema=False)
