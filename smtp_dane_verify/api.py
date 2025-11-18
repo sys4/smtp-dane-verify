@@ -161,7 +161,7 @@ def format_output(
 
 
 class QueryParams(pydantic.BaseModel):
-    format: Optional[Literal['json', 'text', 'openmetrics', 'prometheos']] = pydantic.Field(None, title="bla")
+    format: Optional[Literal['json', 'text', 'openmetrics', 'prometheus']] = pydantic.Field(None, description="Output format (query parameter), default: JSON")
 
 
 ACCEPT_HEADER_HELP_TEXT = "HTTP 'Accept' header, equivalent to the ?format=... parameter but takes a " \

@@ -30,6 +30,7 @@ class VerificationResult(pydantic.BaseModel):
     openssl_verification: Optional[str] = None
     openssl_return_code: Optional[int] = None
     log_messages: list[str] = []
+    tlsa_resource_records: list[str] = []
 
 
 def verify_tlsa_resource_record(
@@ -154,6 +155,7 @@ def verify(hostname: str,
         return result
     
     result = verify_tlsa_resource_record(hostname, filtered_answers, openssl=openssl)
+    result.tlsa_resource_records = [str(x) for x in filtered_answers]
 
     if disable_dnssec is False:
         result.dnssec_status = dnssec_message
