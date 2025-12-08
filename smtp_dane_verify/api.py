@@ -1,7 +1,9 @@
 import os
 import uuid
 import logging
+import asyncio
 from typing import Annotated, Literal, Optional
+from contextlib import asynccontextmanager
 
 import pydantic
 from fastapi import FastAPI, Request, Response, Header, Depends, Query
@@ -24,13 +26,53 @@ API_TITLE = "SMTP-TLSA Resource Record Verification API"
 API_VERSION = "0.2.0"
 
 
+last_metrics_results: list[DomainVerificationResult]|None = None
+
+# Run
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    raw_domains = os.environ.get('METRICS_DOMAINS')
+    if raw_domains is not None:
+        domains = [x.strip().lower() for x in raw_domains.split(',')]
+        interval = int(os.environ.get('METRICS_INTERVAL', '600'))
+        log.info("Starting metrics background task (interval: %d s) for the following domains: %s" % (interval,", ".join(domains)))
+        asyncio.create_task(background_task(domains, interval))
+    yield
+
+
+async def background_task(domains: list, interval: int) -> None:
+    """
+    Docstring for background_task
+    
+    :param domains: Description
+    :type domains: list
+    :param interval: Description
+    :type interval: int
+    """
+    global last_metrics_results
+    while asyncio.get_running_loop().is_running:
+        new_metrics_results = []
+        for domain in domains:
+            one_result = verify_domain_servers(domain, 
+                                       openssl=OPENSSL_PATH,
+                                       external_resolver=EXTERNAL_RESOLVER,
+                                       disable_dnssec=NO_STRICT_DNSSEC)
+            new_metrics_results.append(one_result)
+            # Requests to metrics should not be blocked indefinitely.
+            await asyncio.sleep(0.001)
+        last_metrics_results = new_metrics_results
+        await asyncio.sleep(interval)
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title=API_TITLE,
     version=API_VERSION,
     description=DESCRIPTION,
     # Disable unauthenticated access to docs
     docs_url=None, redoc_url=None, openapi_url=None
 )
+
 
 
 OPENSSL_PATH = os.environ.get('OPENSSLPATH', None)
@@ -186,6 +228,12 @@ def verify_hostname(verification_req: HostnameVerificationRequest,
     # Return the result in the user-specified format
     return format_output(result, query_params.format, accept)
 
+
+@app.get('/metrics/')
+def get_metrics() -> Response:
+    global last_metrics_results
+    result = last_metrics_results
+    return format_output(result)
 
 
 @app.post("/verify/")
