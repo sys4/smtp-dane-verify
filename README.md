@@ -1,20 +1,20 @@
 # What is SMTP-DANE-Verify ?
 
-Problems with DANE usally stem from TLSA Resource Records that don’t
-match the SMTP services x509 certificate fingerprint. This happens if
-not only the certificate was renewed, but also the private key because
-then the certificates fingerprint changes. It also happens if a
-certificate from a new vendor is used in production and, of course, also
-if those creating the TLSA Resource Record get something wrong and the
-TLSA record doesn’t match right from the start. Whatever reason if no
-TLSA Resource Record matches DANE verification will fail and DANE
-verifying servers will not send messages to a mismatching SMTP service.
+Problems with DANE usally stem from TLSA Resource Records (TLSA-RR) that
+don’t matchcthe SMTP service’s x509 certificate fingerprint. This
+happens if not only the certificate was renewed, but also the private
+key because then the certificates fingerprint changes. It also happens
+if a certificate from a new vendor is used in production and, of course,
+also if those creating the TLSA Resource Record get something wrong and
+the TLSA record doesn’t match right from the start. Whatever reason if
+no TLSA-RR matches DANE verification will fail and DANE verifying
+servers will not send messages to a mismatching SMTP service.
 
 SMTP DANE Verify will not prevent you from publishing mismatching TLSA
 Resource Records, but it will help you to detect that there is a
-mismatch. It provides a service that verifies one of more TLSA Resource
-Records, published for a SMTP service, match the service’s x509
-certificate fingerprint.
+mismatch. It provides a service that verifies one of more TLSA-RRs,
+published for a SMTP service, match the service’s x509 certificate
+fingerprint.
 
 Use it as external probing service in your monitoring platform. Tell it
 which host to verify and it will reply if the test was valid or not.
@@ -26,138 +26,194 @@ You can install and run smtp-dane-verify as a service and run it on a
 machine or you download and run smtp-dane-verify as docker container. We
 recommend the latter. It’s hassle free.
 
-# Running smtp-dane-verify as docker container
+# Using the command-line interface (CLI)
 
-smtp-dane-verify expects the service that queries for a probe to
-authenticate itself using an API key. This API key must be known to
-smtp-dane-verify beforehand. Create an API key e.g. executing
-`base64 /dev/urandom | head -c30` on the command line like this:
+After installing the dane-smtp the command `danesmtp` is available. The
+shell status code of the command is 0 when validation is completed
+succesfully, 1 (or greater) otherwise.
 
-    % base64 /dev/urandom | head -c30
-    SAsMTaxKPbTZwD0c25cCZE/JXJAtqi
+    % danesmtp --help
+    usage: danesmtp [--help] [-u USAGES] [-o OPENSSL] [-n NAMESERVER] [--no-strict-dnssec] [-f FORMAT] [-h HOSTNAME] [-a ADDRESS] [-d DOMAIN]
 
-Then use the output as `APIKEY` environment variable in
-smtp-dane-verify’s `docker-compose.yml` configuration file. By default
-smtp-dane-verify will use on any available network interface on port
-`3000`. The following example changes that and binds smtp-dane-verify
-explicitly on `::1`. Still it exposes port `3000` to the outside and
-forwards it internally to the same port:
+Verify that your DANE records and your SMTP server are configured
+correctly.
 
-**docker-compose.yml**
+options: --help show this help message and exit -u USAGES, --usages
+USAGES The usages parameter (default: 2,3) -o OPENSSL, --openssl OPENSSL
+Path to the `openssl` binary, default: "openssl" -n NAMESERVER,
+--nameserver NAMESERVER Optional IP address of an external nameserver,
+by default the default resolver will be used. -f FORMAT, --format FORMAT
+Select the output format. Available formats: json, text -h HOSTNAME,
+--hostname HOSTNAME, --host HOSTNAME The SMTP server hostname to be
+checked (either --hostname or --domain is required) -a ADDRESS,
+--address ADDRESS Overwrite the address of the mail server, only to be
+used with --hostname. -d DOMAIN, --domain DOMAIN The domain to be
+checked (either --hostname or --domain is required) --no-strict-dnssec
+Relax on the DNSSEC verification of the TLSA records.
 
-    name: smtp-tlsa-verify
-    services:
-      smtp-tlsa-verify:
-        image: sys4ag/smtp-tlsa-verify
-        container_name: smtp-tlsa-verify
-        environment:
-          APIKEY: SAsMTaxKPbTZwD0c25cCZE/JXJAtqi
-        ports:
-          - "[::]:3000:3000"
-        restart: always
+    The CLI can easily be used with other tool by switcing the output format to JSON:
 
-In this example all docker instances are located in `/opt/$CONTAINER` on
-the host machine. To start smtp-tlsa-verify either change into
-`/opt/smtp-tlsa-verify` and excute:
+    [source,console]
 
-    % docker up -d
+% danesmtp -f json -h mail.example.com { "host\_dane\_verified": true,
+"protocol\_version": "TLSv1.2", "hostname": "mail.example.com",
+"ciphersuite": "ECDHE-RSA-AES256-GCM-SHA384", "peer\_certificate":
+"CN=mail.example.com", "hash\_used": "SHA256", "signature\_type": "RSA",
+"verification": "OK", "openssl\_return\_code": 0, "log\_messages": \[\]
+}
 
-Or, alternatively and if you use systemd, create a systemd service unit
-file `/etc/systemd/system/docker-compose@.service` like this:
+    With additional toolin like "jq" you can easily extract data from the JSON output,
+    example:
 
-**docker-compose@.service**
+    [source,console]
 
-    [Unit]
-    Description=%i service with docker compose
-    Requires=docker.service
-    After=docker.service
+% danesmtp -f json -h mail.example.com | jq .verification "OK"
 
-    [Service]
-    WorkingDirectory=/opt/%i
-    ExecStartPre=-/usr/bin/docker compose pull
-    ExecStart=/usr/bin/docker compose up --remove-orphans
-    ExecStop=/usr/bin/docker compose down
-    ExecReload=/usr/bin/docker compose pull
-    ExecReload=/usr/bin/docker compose up --remove-orphans
+    == Running smtp-dane-verify as docker container
 
-    [Install]
-    WantedBy=multi-user.target
+    smtp-dane-verify expects the service that queries for a probe to authenticate
+    itself using an API key. This API key must be known to smtp-dane-verify
+    beforehand. Create an API key e.g. executing `base64 /dev/urandom | head -c30`
+    on the command line like this:
 
-Then use the systemd service template and create a systemd unit file for
-`smtp-tlsa-verify` like this:
 
-    % systemctl enable --now docker-compose@smtp-tlsa-verify.service
+    [source,console]
 
-This will enable **and** start the service. If you start
-`smtp-tlsa-verify` for the first time, docker will initially download
-the container `sys4ag/smtp-tlsa-verify` and then it will start it. If
-this step was successfull you will be able to verify `smtp-tlsa-verify`
-has bound itself to port `3000/tcp` listening on IPv6 only:
+% base64 /dev/urandom | head -c30 SAsMTaxKPbTZwD0c25cCZE/JXJAtqi
 
-    # lsof -Pni tcp:3000
-    COMMAND      PID USER FD   TYPE  DEVICE SIZE/OFF NODE NAME
-    docker-pr 481892 root 7u  IPv6 3259319      0t0  TCP *:3000 (LISTEN)
+    Then use the output as `APIKEY` environment variable in smtp-dane-verify's
+    `docker-compose.yml` configuration file. By default smtp-dane-verify will use on
+    any available network interface on port `3000`. The following example changes
+    that and binds smtp-dane-verify explicitly on `::1`. Still it exposes port
+    `3000` to the outside and forwards it internally to the same port:
 
-Your `smtp-tlsa-verify` docker container should now be ready to probe
-hosts. Verify it works using the following command and your personal
-APIKEY:
+    [source,yaml]
+    .docker-compose.yml
 
-    curl --header "x-apikey: SAsMTaxKPbTZwD0c25cCZE/JXJAtqi" \
-        --header "Content-Type: application/json" \
-        --request POST \
-        --data '{"hostname":"mail2.ietf.org"}' \
-        http://[::1]:3000/verify/
+name: smtp-dane-verify services: smtp-tlsa-verify: image:
+sys4ag/smtp-dane-verify container\_name: smtp-dane-verify environment:
+APIKEY: SAsMTaxKPbTZwD0c25cCZE/JXJAtqi ports: - "\[::\]:3000:3000"
+restart: always
 
-Upon return `smtp-tlsa-verify` will output [RFC
-8259](https://www.rfc-editor.org/rfc/rfc8259) formatted JSON data:
+    In this example all docker instances are located in `/opt/$CONTAINER` on the
+    host machine. To start smtp-dane-verify either change into
+    `/opt/smtp-dane-verify` and excute:
 
-    {
-       "host_dane_verified":true,
-       "protocol_version":"TLSv1.3",
-       "hostname":"mail2.ietf.org.",
-       "ciphersuite":"TLS_AES_256_GCM_SHA384",
-       "peer_certificate":"CN = *.ietf.org",
-       "hash_used":"SHA256",
-       "signature_type":"ECDSA",
-       "verification":"OK",
-       "openssl_return_code":0,
-       "message":null
-    }
+% docker up -d
 
-If `smtp-tlsa-verify` works like this for you you can start integrating
-it into your monitoring service.
+    Or, alternatively and if you use systemd, create a systemd service unit file
+    `/etc/systemd/system/docker-compose@.service` like this:
 
-# Monitoring services
+    [source,ini]
+    .docker-compose@.service
 
-## Uptime Kuma
+Description=%i service with docker compose Requires=docker.service
+After=docker.service
 
-> Uptime Kuma is an easy-to-use self-hosted monitoring tool.
->
-> —  Uptime Kuma Website
+WorkingDirectory=/opt/%i ExecStartPre=-/usr/bin/docker compose pull
+ExecStart=/usr/bin/docker compose up --remove-orphans
+ExecStop=/usr/bin/docker compose down ExecReload=/usr/bin/docker compose
+pull ExecReload=/usr/bin/docker compose up --remove-orphans
 
-<figure>
-<img src="assets/kuma_add_new_monitor.png" alt="kuma add new monitor" />
-<figcaption>Uptime Kuma "Add New Monitor" dialogue</figcaption>
-</figure>
+WantedBy=multi-user.target
 
-Follow these steps to integrate `smtp-tlsa-verify` into Uptime Kuma:
+    Then use the systemd service template and create a systemd unit file for
+    `smtp-dane-verify` like this:
 
-1.  Choose Add New Monitor and select HTTP(s) - Json Query as Monitor
-    Type in the General section of the Add New Monitor dialogue.
+% systemctl enable --now docker-compose@smtp-dane-verify.service
 
-2.  Give the Monitor a Friendly Name e.g. `SMTP TLSA Verify`.
+    This will enable *and* start the service. If you start `smtp-dane-verify` for
+    the first time, docker will initially download the container
+    `sys4ag/smtp-dane-verify` and then it will start it. If this step was
+    successfull you will be able to verify `smtp-dane-verify` has bound itself to
+    port `3000/tcp` listening on IPv6 only:
 
-3.  Enter `http://[::1]:3000/verify/` as URL.
+    [source,console]
 
-4.  Enter `host_dane_verified` into the Json Query form field
+# lsof -Pni tcp:3000
 
-5.  Enter `true` in the Expected Value form field.
+COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME docker-pr 481892 root
+7u IPv6 3259319 0t0 TCP \*:3000 (LISTEN)
 
-6.  Then turn to the HTTP Options section and add the host you want to
-    probe as JSON DATA e.g. like this:
-    `{ "hostname": "mail2.ietf.org" }`
+    Your `smtp-dane-verify` docker container should now be ready to probe hosts.
+    Verify it works using the following command and your personal APIKEY:
 
-7.  Finally provide your `APIKEY` by writing it into the Headers form
-    field like this: `{ "x-apikey": "SAsMTaxKPbTZwD0c25cCZE/JXJAtqi" }`
+    [source,console]
 
-8.  Save the Add New Monitor dialogue
+curl --header "x-apikey: SAsMTaxKPbTZwD0c25cCZE/JXJAtqi" \\ --header
+"Content-Type: application/json" \\ --request POST \\ --data
+'{"hostname":"mail2.ietf.org"}' \\ http://\[::1\]:3000/verify/
+
+    Upon return `smtp-dane-verify` will output
+    https://www.rfc-editor.org/rfc/rfc8259[RFC 8259] formatted JSON data:
+
+    [source,json]
+
+{ "host\_dane\_verified":true, "protocol\_version":"TLSv1.3",
+"hostname":"mail2.ietf.org.",
+"ciphersuite":"TLS\_AES\_256\_GCM\_SHA384", "peer\_certificate":"CN =
+\*.ietf.org", "hash\_used":"SHA256", "signature\_type":"ECDSA",
+"verification":"OK", "openssl\_return\_code":0, "log\_messages": \[\] }
+
+    If `smtp-dane-verify` works like this for you you can start integrating it into
+    your monitoring service.
+
+    == Monitoring services
+
+    === Prometheus
+
+    In order for the Prometheus exporter to work you need to add the following environment variables:
+
+    METRICS_DOMAINS=example.com,mysecondexample.com
+
+    Multiple domains need to by separated by commas.
+
+    The variable METRICS_INTERVAL=<int:interval in seconds> controls the interval at which the SMTP-DANE records are queried an checked in the background.
+
+    [source,yaml]
+
+scrape\_configs: - job\_name: dane-smtp-verify params: api\_key: -
+&lt;insert your API key here&gt; static\_configs: - labels: {}
+targets: - localhost:8080
+
+    === Uptime Kuma
+
+    [quote,Uptime Kuma,Website]
+    Uptime Kuma is an easy-to-use self-hosted monitoring tool.
+
+    .Uptime Kuma "Add New Monitor" dialogue
+    image::assets/kuma_add_new_monitor.png[]
+
+    Follow these steps to integrate `smtp-dane-verify` into Uptime Kuma:
+
+    . Choose menu:Add New Monitor[] and select menu:HTTP(s) - Json Query[] as
+      menu:Monitor Type[] in the
+      menu:General[] section of the menu:Add New Monitor[] dialogue.
+    . Give the Monitor a menu:Friendly Name[] e.g. `SMTP DANE Verify`.
+    . Enter `http://[::1]:3000/verify/` as menu:URL[].
+    . Enter `host_dane_verified` into the menu:Json Query[] form field
+    . Enter `true` in the menu:Expected Value[] form field.
+    . Then turn to the menu:HTTP Options[] section and add the host you want to
+      probe as JSON DATA e.g. like this: `{ "hostname": "mail2.ietf.org" }`
+    . Finally provide your `APIKEY` by writing it into the menu:Headers[] form field like
+      this: `{ "x-apikey": "SAsMTaxKPbTZwD0c25cCZE/JXJAtqi" }`
+    . btn:[Save] the menu:Add New Monitor[] dialogue
+
+
+
+
+
+
+
+    // By default the docker container will be available on port 3000.
+    //
+    // ```
+    // docker run -p3000:3000 smtp-tlsa-verify
+    // ```
+    //
+    // In order to run the command under a different port number, please use the
+    // "-p" parameter:
+    //
+    // ```
+    // docker run -p4000:4000 smtp-tlsa-verify -p 4000
+    // ```
