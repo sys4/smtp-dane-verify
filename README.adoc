@@ -209,6 +209,29 @@ your monitoring service.
 
 == Monitoring services
 
+=== Prometheus
+
+In order for the Prometheus exporter to work you need to add the following environment variables:
+
+METRICS_DOMAINS=example.com,mysecondexample.com
+
+Multiple domains need to by separated by commas.
+
+The variable METRICS_INTERVAL=<int:interval in seconds> controls the interval at which the SMTP-DANE records are queried an checked in the background.
+
+[source,yaml]
+----
+scrape_configs:
+- job_name: dane-smtp-verify
+  params:
+    api_key:
+    - <insert your API key here>
+  static_configs:
+  - labels: {}
+    targets:
+    - localhost:8080
+----
+
 === Uptime Kuma
 
 [quote,Uptime Kuma,Website]

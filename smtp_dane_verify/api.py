@@ -23,9 +23,10 @@ This is API verifies TLSA Resource Records, used for DANE with e-mail servers.
 This project is sponsored by sys4 AG, Germany
 '''
 API_TITLE = "SMTP-TLSA Resource Record Verification API"
-API_VERSION = "0.2.0"
+API_VERSION = "0.3.0"
 
-
+# Used to store the last results to be scraped by Prometheus when
+# the /metrics endpoint is active.
 last_metrics_results: list[DomainVerificationResult]|None = None
 
 # Run
@@ -53,13 +54,18 @@ async def background_task(domains: list, interval: int) -> None:
     while asyncio.get_running_loop().is_running:
         new_metrics_results = []
         for domain in domains:
-            one_result = verify_domain_servers(domain, 
-                                       openssl=OPENSSL_PATH,
-                                       external_resolver=EXTERNAL_RESOLVER,
-                                       disable_dnssec=NO_STRICT_DNSSEC)
+            log.debug("Background task checking %s" % domain)
+            def do_work(domain):
+                return verify_domain_servers(
+                    domain, 
+                    openssl=OPENSSL_PATH,
+                    external_resolver=EXTERNAL_RESOLVER,
+                    disable_dnssec=NO_STRICT_DNSSEC
+                )
+            one_result = await asyncio.get_running_loop().run_in_executor(None, do_work, domain)
             new_metrics_results.append(one_result)
             # Requests to metrics should not be blocked indefinitely.
-            await asyncio.sleep(0.001)
+            await asyncio.sleep(0)
         last_metrics_results = new_metrics_results
         await asyncio.sleep(interval)
 
@@ -150,17 +156,97 @@ class DomainVerificationRequest(pydantic.BaseModel):
 
 class OpenMetricsResponse(Response):
     media_type = "application/openmetrics-text; version=1.0.0; charset=utf-8"
+    
+    def __init__(self, content = None, status_code = 200, headers = None, media_type = None, background = None):
+        self.metrics = {
+            "smtp_dane_verify_version": {
+                "HELP": "Information about the smtp-dane-verify version",
+                "TYPE": "gauge"
+            },
+            "smtp_dane_verify_all_hosts_dane_verified": {
+                "HELP": "Information if all host of domain are DANE verified",
+                "TYPE": "gauge"
+            },
+            "smtp_dane_verify_dnssec_valid": {
+                "HELP": "Information if all DNS records from domain are DNSSEC verified",
+                "TYPE": "gauge"
+            },
+            "smtp_dane_verify_total_mx": {
+                "HELP": "Total count of MX-records in domain",
+                "TYPE": "gauge"
+            },
+            "smtp_dane_verify_total_tlsa_openssl_ok": {
+                "HELP": "Total count of TLSA-records verified by OpenSSL",
+                "TYPE": "gauge"
+            },
+            "smtp_dane_verify_num_tlsa": {
+                "HELP": "Count of TLSA-Records for MX host",
+                "TYPE": "gauge"
+            },
+            "smtp_dane_verify_num_tlsa_dane_ta": {
+                "HELP": "Count of DANE-TA TLSA-Records for mail host (Usage 2)",
+                "TYPE": "gauge"
+            },
+            "smtp_dane_verify_num_tlsa_dane_ee": {
+                "HELP": "Count of DANE-EE TLSA-Records for mail host (Usage 3)",
+                "TYPE": "gauge"
+            }
+        }
+        super().__init__(content, status_code, headers, media_type, background)
 
-    def render(self, content: VerificationResult) -> bytes:
-        if type(content) == DomainVerificationResult:
-            text = "# TYPE dane_smtp_domain_verified gauge\n" \
-                   "# HELP dane_smtp_domain_verified Results of the DANE SMTP domain verification\n"
-            text += f'dane_smtp_domain_verified{{domain="{content.domain}"}} {1 if content.all_hosts_dane_verified else 0}\n'
+
+    def add_val(self, name: str, tag: str, value: str|int) -> None:
+        metric = self.metrics[name]
+        if not 'VALS' in metric.keys():
+            metric['VALS'] = {
+                tag: str(value)
+            }
         else:
-            text = "# TYPE dane_smtp_host_verified gauge\n" \
-                   "# HELP dane_smtp_host_verified Results of the DANE SMTP verification\n"
-            text += f'dane_smtp_host_verified{{hostname="{content.hostname}"}} {1 if content.host_dane_verified else 0}\n'
-        
+            metric['VALS'][tag] = value
+    
+    def render_metrics(self) -> str:
+        text = ''
+        for name, entry in self.metrics.items():
+            values = entry.get('VALS', [])
+            if len(values) > 0:
+                text += f'# HELP {name} {entry['HELP']}\n'
+                text += f'# TYPE {name} {entry['TYPE']}\n'
+                for tag, value in values.items():
+                    text += f'{name}{{{tag}}} {value}\n'
+        text += "# EOF"
+        return text
+    
+    def render(self, content: list[VerificationResult|DomainVerificationResult]) -> bytes:
+        for result in content:
+            if type(result) == DomainVerificationResult:
+                self.add_val('smtp_dane_verify_version', f'version="{API_VERSION}"', 1)
+                domain = f'domain="{result.domain}"'
+                self.add_val('smtp_dane_verify_all_hosts_dane_verified', domain, 1 if result.all_hosts_dane_verified else 0)
+                self.add_val('smtp_dane_verify_dnssec_valid', domain, 1 if result.dnssec_valid else 0)
+                self.add_val('smtp_dane_verify_total_mx', domain, len(result.mx_hosts))
+                total_tlsa_resource_records = 0
+                for mx_host in result.mx_hosts:
+                    total_tlsa_resource_records += len(mx_host.tlsa_resource_records)
+                self.add_val('smtp_dane_verify_total_tlsa_openssl_ok', domain, total_tlsa_resource_records)
+                for mx_host in result.mx_hosts:
+                    mx = f'mx="{mx_host.hostname}"'
+                    self.add_val('smtp_dane_verify_num_tlsa', mx, len(mx_host.tlsa_resource_records))
+                    self.add_val(
+                        'smtp_dane_verify_num_tlsa_dane_ta', 
+                        mx, 
+                        len([record for record in mx_host.tlsa_resource_records if record.startswith('2')])
+                    )
+                    self.add_val(
+                        'smtp_dane_verify_num_tlsa_dane_ee',
+                        mx,
+                        len([record for record in mx_host.tlsa_resource_records if record.startswith('3')])
+                    )
+                text = self.render_metrics()
+            else:
+                text = "# TYPE dane_smtp_host_verified gauge\n" \
+                    "# HELP dane_smtp_host_verified Results of the DANE SMTP verification\n"
+                text += f'dane_smtp_host_verified{{hostname="{result.hostname}"}} {1 if result.host_dane_verified else 0}\n'
+        # OpenMetrics.io specs require UTF-8
         return text.encode('utf-8')
 
 
@@ -194,7 +280,8 @@ def format_output(
             response_format = 'json'
 
     if response_format == 'openmetrics':
-        return OpenMetricsResponse(content=result)
+        # OpenMetricsResponse requires a **list** of DomainVerificationResults
+        return OpenMetricsResponse(content=[result])
     elif response_format == 'text':
         return Response(f"{result}\n".encode('utf-8'), media_type="text/plain")
     # default: JSON
@@ -229,11 +316,21 @@ def verify_hostname(verification_req: HostnameVerificationRequest,
     return format_output(result, query_params.format, accept)
 
 
-@app.get('/metrics/')
-def get_metrics() -> Response:
+@app.get('/metrics')
+def get_metrics(api_key_header: str = Depends(api_key_header),
+                api_key_query: str = Depends(api_key_query)) -> Response:
     global last_metrics_results
-    result = last_metrics_results
-    return format_output(result)
+
+    # Authentication
+    check_api_key(api_key_query, api_key_header)
+
+    # Error handling
+    if len(last_metrics_results) == 0 or last_metrics_results is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service is currently unavailable. Please try again later."
+        )
+    return OpenMetricsResponse(content=last_metrics_results)
 
 
 @app.post("/verify/")
@@ -253,6 +350,7 @@ def verify_domain(verification_req: DomainVerificationRequest,
 
     # Return the result in the user-specified format
     return format_output(result, query_params.format, accept)
+
 
 @app.get("/docs", include_in_schema=False)
 async def get_documentation(api_key_header: str = Depends(api_key_header), api_key_query: str = Depends(api_key_query)):
