@@ -23,7 +23,7 @@ This is API verifies TLSA Resource Records, used for DANE with e-mail servers.
 This project is sponsored by sys4 AG, Germany
 '''
 API_TITLE = "SMTP-TLSA Resource Record Verification API"
-API_VERSION = "0.3.0"
+API_VERSION = "0.3.1"
 
 # Used to store the last results to be scraped by Prometheus when
 # the /metrics endpoint is active.
