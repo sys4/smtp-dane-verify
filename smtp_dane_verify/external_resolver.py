@@ -1,5 +1,7 @@
 import logging
 import socket
+from typing import Optional
+
 import dns.name
 from dns.rrset import RRset
 from dns.flags import Flag, EDNSFlag
@@ -15,17 +17,22 @@ _resolver = None
 RESOLVER_TIMEOUT = 10.0   # seconds as float
 
 
-def create_resolver(resolver_addr) -> Resolver:
-    resolver = Resolver(configure=False)
-    resolver.nameservers = [socket.gethostbyname(resolver_addr)]
+def create_resolver(resolver_addr: Optional[str] = None) -> Resolver:
+    
+    if resolver_addr is not None:
+        resolver = Resolver(configure=False)
+        resolver.nameservers = [socket.gethostbyname(resolver_addr)]
+    else:
+        resolver = Resolver()
     resolver.edns = True
     # resolver.flags = Flag.CD   # disabled, this flag causes problems with at least 1.1.1.1 and 8.8.8.8
     resolver.ednsflags = EDNSFlag.DO
+    resolver.flags = dns.flags.AD | dns.flags.RD
     resolver.lifetime = RESOLVER_TIMEOUT
     return resolver
 
 
-def get_resolver(resolver_addr: str):
+def get_resolver(resolver_addr: Optional[str] = None) -> Resolver:
     # Resolver considered thread safe once configured
     global _resolver
     if not _resolver:

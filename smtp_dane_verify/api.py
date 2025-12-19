@@ -56,12 +56,15 @@ async def background_task(domains: list, interval: int) -> None:
         for domain in domains:
             log.debug("Background task checking %s" % domain)
             def do_work(domain):
-                return verify_domain_servers(
-                    domain, 
-                    openssl=OPENSSL_PATH,
-                    external_resolver=EXTERNAL_RESOLVER,
-                    disable_dnssec=NO_STRICT_DNSSEC
-                )
+                try:
+                    return verify_domain_servers(
+                        domain, 
+                        openssl=OPENSSL_PATH,
+                        external_resolver=EXTERNAL_RESOLVER,
+                        disable_dnssec=NO_STRICT_DNSSEC
+                    )
+                except Exception as e:
+                    log.error(str(e))
             one_result = await asyncio.get_running_loop().run_in_executor(None, do_work, domain)
             new_metrics_results.append(one_result)
             # Requests to metrics should not be blocked indefinitely.
@@ -190,7 +193,12 @@ class OpenMetricsResponse(Response):
             "smtp_dane_verify_num_tlsa_dane_ee": {
                 "HELP": "Count of DANE-EE TLSA-Records for mail host (Usage 3)",
                 "TYPE": "gauge"
-            }
+            },
+            # Only sometimes used for single-host results, will be ommitted most of the time.
+            'dane_smtp_host_verified': {
+                'HELP': 'Results of the DANE SMTP verification',
+                'TYPE': 'gauge'
+            },
         }
         super().__init__(content, status_code, headers, media_type, background)
 
@@ -242,10 +250,12 @@ class OpenMetricsResponse(Response):
                         len([record for record in mx_host.tlsa_resource_records if record.startswith('3')])
                     )
                 text = self.render_metrics()
+            elif type(result) == VerificationResult:
+                self.add_val('smtp_dane_verify_version', f'version="{API_VERSION}"', 1)
+                self.add_val('dane_smtp_host_verified', 'hostname="{result.hostname}"', 1 if result.host_dane_verified else 0)
             else:
-                text = "# TYPE dane_smtp_host_verified gauge\n" \
-                    "# HELP dane_smtp_host_verified Results of the DANE SMTP verification\n"
-                text += f'dane_smtp_host_verified{{hostname="{result.hostname}"}} {1 if result.host_dane_verified else 0}\n'
+                raise Exception()
+
         # OpenMetrics.io specs require UTF-8
         return text.encode('utf-8')
 
@@ -325,7 +335,7 @@ def get_metrics(api_key_header: str = Depends(api_key_header),
     check_api_key(api_key_query, api_key_header)
 
     # Error handling
-    if len(last_metrics_results) == 0 or last_metrics_results is None:
+    if last_metrics_results is None or len(last_metrics_results) == 0:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Service is currently unavailable. Please try again later."

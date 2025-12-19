@@ -42,7 +42,7 @@ def check_dnssec_status(message) -> tuple[bool, str]:
     if message.flags & Flag.AD:
         return (True, 'secure')
     else:
-        return (False, 'insecure, AD flag not set')
+        return (False, 'insecure, AD flag not set or resolver has DNSSEC disabled.')
 
 
 def get_tlsa_record(hostname: str, external_resolver: Optional[str]=None) -> tuple[dns.resolver.Answer, bool, str]:
@@ -50,7 +50,7 @@ def get_tlsa_record(hostname: str, external_resolver: Optional[str]=None) -> tup
     try:
         if external_resolver is None:
             # Perform the DNS query for the TLSA record
-            tlsa_records = dns.resolver.resolve(query, "TLSA")
+            tlsa_records = resolve(None, query, "TLSA")
             log.debug("Using default resolver.")
         else:
             tlsa_records = resolve(external_resolver, query, "TLSA")
@@ -72,7 +72,7 @@ def get_mx_records(domain: str, external_resolver: Optional[str]=None) -> tuple[
     try:
         if external_resolver is None:
             # Perform the DNS query for the TLSA record
-            mx_record = dns.resolver.resolve(domain, "MX")
+            mx_record = resolve(None, domain, "MX")
             mailserver_set = mx_record.rrset
             log.debug("Using default resolver.")
         else:
