@@ -1,6 +1,6 @@
 [project]
 name = "smtp-dane-verify"
-version = "0.3.1"
+version = "0.3.2"
 description = "A small library, command-line utility, Prometheus exporter, and JSON/HTTP/FastAPI service to check DANE/TLSA-RRs against SMTP servers."
 readme = "README.md"
 requires-python = ">=3.12"

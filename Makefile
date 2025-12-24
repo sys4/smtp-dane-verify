@@ -16,8 +16,8 @@ ifneq ($(PKG_VER), $(API_VER))
 	exit 1
 endif
 	uv build
-	docker buildx build -t sys4ag/smtp-dane-verify:$(PKG_VER) --platform linux/amd64,linux/arm64 .
-	docker image tag sys4ag/smtp-dane-verify:$(PKG_VER) latest
+	docker buildx build -t sys4ag/smtp-dane-verify:$(PKG_VER) -t sys4ag/smtp-dane-verify:latest --platform linux/amd64,linux/arm64 .
+	# docker image tag sys4ag/smtp-dane-verify:$(PKG_VER) sys4ag/smtp-dane-verify:latest
 
 publishpypi: dist/smtp_dane_verify-$(PKG_VER)-py3-none-any.whl dist/smtp_dane_verify-$(PKG_VER).tar.gz
 	uv publish
