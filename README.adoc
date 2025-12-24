@@ -17,7 +17,7 @@ verification results in an openmetrics compliant request / response call.
 
 == What exactly will SMTP-DANE-Verify test?
 
-Given a domain to test SMTP-DANE-Verify will:
+*Given a domain* to test SMTP-DANE-Verify will:
 
 . verify the given DNS zone is DNSSEC-enabled and that all responses can be
   DNSSEC-verified correctly
@@ -36,27 +36,30 @@ If one or more MX records refer to a mail service located outside of the given
 .. verify at least one TLSA resource record matches with the MX services'
    x509 certificate fingerprint
 
-SMTP-DANE-Verify aims to provide an overview what *exactly* is wrong.
-Therefore it will not stop it's testing if e.g. DNSSEC-verification fails, but
-all the TLSA record MX service tests succeed. We consider this useful e.g. if a
-platform is on the way to become fully DANE compliant, but for whatever reason
-not there yet.
+*Given a host* to test SMTP-DANE-Verify will:
+
+. verify the given DNS zone is DNSSEC-enabled and that all responses can be
+  DNSSEC-verified correctly
+.. verify there is at least one TLSA record associated with the host
+.. verify at least one TLSA resource record matches with the hosts'
+   x509 certificate fingerprint
+
+In any case SMTP-DANE-Verify aims to provide an overview what *exactly* is
+wrong. Therefore it will not stop it's testing if e.g. DNSSEC-verification
+fails, but all the TLSA record MX service tests succeed. We consider this useful
+e.g. if a platform is on the way to become fully DANE compliant, but for
+whatever reason not there yet.
 
 
 == How do I use SMTP-DANE-Verify?
 
-Either you integrate SMTP-DANE-Verify, it was written in Python, in your own
-service environment or you pull and run SMTP-DANE-Verify as a docker container,
+Either you integrate the projects Python library
+https://pypi.org/project/smtp-dane-verify/[smtp-dane-verify^] into your own
+service environment or you pull and run the docker container
+https://hub.docker.com/repository/docker/sys4ag/smtp-dane-verify/general[SMTP-DANE-Verify^],
 request test runs on your monitoring platform from the service running inside
-the container and handle the test results in your monitoring.
-
-In both cases SMTP-DANE-Verify uses it's own
-https://pypi.org/project/smtp-dane-verify/[smtp-dane-verify^] Python library to
-provide and deliver the verification service. If you are a skilled operator or
-developer you may want to integrate the Python library into your own project /
-environment. If you don't want to do so you may just run SMTP-DANE-Verify as a
-docker container. In this case the following section should get you up and
-running within short time.
+the container and handle the test results in your monitoring. The following
+sections walk you through the docker setup and configuration steps.
 
 
 == Running smtp-dane-verify as docker container
@@ -105,7 +108,7 @@ this a minor tradeoff as we do expect this list to change rarely.
 This section assumes you already have a working docker environment in place and
 are comfortable configuring and running docker containers.
 
-.configuration steps
+.Configuration Steps
 . Create a directory to hold the `docker-compose.yml` file
 . Create an API key
 . Configure SMTP-DANE-Verify
@@ -144,7 +147,7 @@ configuring its runtime behaviour.
 
 The recommended way to configure and run SMTP-DANE-Verify in
 `docker-compose.yml` is to specify to pull and run `sys4ag/smtp-dane-verify`
-(SMTP-DANE-Verify) and `mvance/unbound` (DNSSEC-validating DNS Resolver) from
+(SMTP-DANE-Verify) *and* `mvance/unbound` (DNSSEC-validating DNS Resolver) from
 docker hub and configure `smtp-dane-verify` to use `unbound` as `NAMESERVER`.
 
 Assign the API key (here: SAsMTaxKPbTZwD0c25cCZEJXJAtqif) you computed to
@@ -191,7 +194,7 @@ using the `docker-compose up` sub-command and detach the container:
  ✔ Container unbound                Created                0.1s
 ----
 
-The use e.g. the `lsof` command to verify the service listens for client
+Then use e.g. the `lsof` command to verify the service listens for client
 connections:
 
 [source,console]
@@ -303,6 +306,59 @@ smtp_dane_verify_num_tlsa_dane_ee{mx="mail2.ietf.org"} 2
 If `smtp-tlsa-verify` works like this for you you can start integrating it into
 your monitoring service.
 
+[NOTE]
+.Verifying a single host
+====
+In case you want to verify a single host use `hostname` instead of `domain` as
+part of the data you send and `verify_host` as path instead of
+`verify` in your HTTP URI e.g. `http://[::1]:3000/verify_host/`:
+
+[source,console]
+----
+% curl \
+    --header "x-apikey: SAsMTaxKPbTZwD0c25cCZEJXJAtqif" \
+    --header "Content-Type: application/json"  \
+    --request POST \
+    --data '{"hostname":"list.sys4.de"}' \
+    http://[::1]:3000/verify_host/
+----
+
+The result differs from what you receive when verifing a domain:
+
+[source,console]
+----
+{
+  "host_dane_verified": true,
+  "dnssec_valid": true,
+  "dnssec_status": "secure",
+  "protocol_version": "TLSv1.3",
+  "hostname": "list.sys4.de",
+  "ciphersuite": "TLS_AES_256_GCM_SHA384",
+  "peer_certificate": "CN = list.sys4.de",
+  "hash_used": "SHA384",
+  "signature_type": "ECDSA",
+  "openssl_verification": "OK",
+  "openssl_return_code": 0,
+  "log_messages": [
+    "CONNECTION ESTABLISHED",
+    "DANE TLSA 3 1 1 ...63410e4c13a40ab37cb744cf matched EE certificate at depth 0",
+    "Server Temp Key: X25519, 253 bits",
+    "250 CHUNKING",
+    "DONE"
+  ],
+  "tlsa_resource_records": [
+    "3 1 1 e679f71454654354310785c811bfad1f8c4a2b6863410e4c13a40ab37cb744cf",
+    "2 1 1 8bb593a93be1d0e8a822bb887c547890c3e706aad2dab76254f97fb36b82fc26",
+    "3 1 1 5a5cdb1f9438a36da11e33b31978c4fed0b8996edd2ea2ce206bf9c026c642ad",
+    "3 1 1 ac8c9eb13fcf4f8e9d1ea84b880007cb4ffbf9be30f335b57e5c5a509c5137e4"
+  ]
+}
+----
+
+Search for `"host_dane_verified": true` in the output when you integrate SMTP
+DANE Verify in e.g. your monitoring.
+====
+
 
 ==  Integrating the service in your monitoring
 
@@ -347,37 +403,18 @@ do not forget to set the correct hostname / IP address.
 === Zabbix
 
 Zabbix uses templates to configure monitoring a service. The following example
-provides a template you may install and use in combination with hosts you want
-to verify. The template assumes you run : configures Zabbix to request SMTP DANE Verification from a smtp-dane-verify
-service running on a remote host (here: 192.0.2.210)
+provides an item you may want to
+xref:assets/zabbix_smtp_dane_verify_item.yaml[download], import and add to a
+template in order to use it combination with hosts you want to verify. The item
+assumes you configure Zabbix to request SMTP DANE Verification from a
+smtp-dane-verify service running on a remote host (here: 192.0.2.210)
 
-[source,yaml]
-----
-  template_groups:
-    - name: Templates
-  templates:
-    -
-      template: Template_SMTP_TLSA_Verify
-      name: Template_SMTP_TLSA_Verify
-      groups:
-        - name: Templates
-      items:
-        -
-          name: SMTP_DANE_Verify
-          type: HTTP_AGENT
-          key: 'check.dane["example.com"]'
-          delay: 4h
-          trends: '0'
-          value_type: TEXT
-          url: 'http://192.0.2.210:8801/verify/?api_key=SAsMTaxKPbTZwD0c25cCZEJXJAtqif'
-          posts: '{"domain":"example.com"}'
-          post_type: JSON
-          request_method: POST
-          tags:
-            -
-              tag: Application
-              value: DANE
-----
+.Zabbix SMTP DANE Verify item
+image::assets/zabbix_smtp_tlsa_verify_item.png[]
+
+Once you have the item in place create an dependend item that preprocesses the
+data returned from the SMTP DANE Verify item and checks that
+`$.all_hosts_dane_verified` is `true`.
 
 
 === Prometheus
@@ -398,17 +435,3 @@ scrape_configs:
     - localhost:8080
 ----
 
-
-
-// By default the docker container will be available on port 3000.
-// 
-// ```
-// docker run -p3000:3000 smtp-tlsa-verify
-// ```
-// 
-// In order to run the command under a different port number, please use the
-// "-p" parameter:
-// 
-// ```
-// docker run -p4000:4000 smtp-tlsa-verify -p 4000
-// ```

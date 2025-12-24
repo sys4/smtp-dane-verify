@@ -1,0 +1,31 @@
+---
+zabbix_export:
+  version: '6.2'
+  date: '2025-12-24T12:33:35Z'
+  template_groups:
+    -
+      name: Templates
+  templates:
+    -
+      template: Template_SMTP_DANE_Verify
+      name: Template_SMTP_DANE_Verify
+      groups:
+        -
+          name: Templates
+      items:
+        -
+          name: 'SMTP_DANE_Verify[{HOST.NAME}]'
+          type: HTTP_AGENT
+          key: 'smtp.check["{HOST.NAME}"]'
+          delay: 5m
+          trends: '0'
+          value_type: TEXT
+          url: 'http://192.0.2.210:8801/verify/?api_key=SAsMTaxKPbTZwD0c25cCZEJXJAtqif'
+          posts: '{"domain":"{HOST.NAME}"}'
+          post_type: JSON
+          request_method: POST
+          tags:
+            -
+              tag: Application
+              value: DANE
+...
