@@ -435,3 +435,13 @@ scrape_configs:
     - localhost:8080
 ----
 
+
+== Questions? Bugs? Improvements?
+
+You have questions, want to file a bug or submit e.g. another instruction that
+shows how to integrate in $MONITORING? Please feel free to use the projects
+https://github.com/sys4/smtp-dane-verify/issues[issue tracker^]. In case you
+have general questions regarding DANE our
+https://list.sys4.de/postorius/lists/dane-users.list.sys4.de/[dane-users]
+mailing list might be the right place.
+
