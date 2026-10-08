@@ -1,4 +1,6 @@
-if __name__ == "__main__":
-    from smtp_dane_verify.cli import main
+import sys
 
-    main()
+from smtp_dane_verify.cli import main
+
+if __name__ == "__main__":
+    sys.exit(main())

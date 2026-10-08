@@ -1,5 +1,6 @@
 # From the RFC: The Certificate Usage field:  Section 2.1.1 of [RFC6698] specifies
 # four values: PKIX-TA(0), PKIX-EE(1), DANE-TA(2), and DANE-EE(3).
+import sys
 import logging
 import argparse
 from smtp_dane_verify.verification import \
@@ -155,5 +156,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    retval = main()
-    exit(retval)
+    sys.exit(main())
