@@ -64,7 +64,7 @@ def get_tlsa_record(hostname: str, external_resolver: Optional[str]=None) -> tup
     except dns.resolver.Timeout:
         raise TlsaRecordError(f"Timeout while querying {query}")
     except Exception as e:
-        traceback.print_exc(file=sys.stdout)
+        traceback.print_exc(file=sys.stderr)
         raise TlsaRecordError(f"An error occurred: {e}")
 
 
@@ -95,7 +95,7 @@ def get_mx_records(domain: str, external_resolver: Optional[str]=None) -> tuple[
     except dns.resolver.Timeout:
         raise MxRecordError(f"Timeout while querying {domain}")
     except Exception as e:
-        traceback.print_exc(file=sys.stdout)
+        traceback.print_exc(file=sys.stderr)
         raise MxRecordError(f"An error occurred: {e}")
 
 
