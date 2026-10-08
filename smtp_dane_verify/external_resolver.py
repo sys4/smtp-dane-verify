@@ -22,7 +22,7 @@ def create_resolver(resolver_addr: Optional[str] = None) -> Resolver:
     if resolver_addr is not None:
         resolver = Resolver(configure=False)
         resolver.nameservers = [socket.gethostbyname(resolver_addr)]
-        log.info("Using user-specified nameserver: %s" ', '.join(resolver.nameservers))
+        log.info("Using user-specified nameserver: %s" % ', '.join(resolver.nameservers))
     else:
         resolver = Resolver()
         log.info("NAMESERVER not set, using default nameservers: %s" % ', '.join(resolver.nameservers))
