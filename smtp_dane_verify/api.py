@@ -14,6 +14,7 @@ from smtp_dane_verify.verification import (
     verify, VerificationResult,
     verify_domain_servers, DomainVerificationResult,
 )
+from smtp_dane_verify.dns_records import MxRecordError, TlsaRecordError
 
 log = logging.getLogger("uvicorn.error")
 
@@ -317,10 +318,16 @@ def verify_hostname(verification_req: HostnameVerificationRequest,
     check_api_key(api_key_query, api_key_header)
 
     # Do the actual verification
-    result = verify(verification_req.hostname, 
-                    openssl=OPENSSL_PATH,
-                    external_resolver=EXTERNAL_RESOLVER,
-                    disable_dnssec=NO_STRICT_DNSSEC)
+    try:
+        result = verify(verification_req.hostname, 
+                        openssl=OPENSSL_PATH,
+                        external_resolver=EXTERNAL_RESOLVER,
+                        disable_dnssec=NO_STRICT_DNSSEC)
+    except (MxRecordError, TlsaRecordError) as err:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(err)
+        )
     
     # Return the result in the user-specified format
     return format_output(result, query_params.format, accept)
@@ -353,10 +360,16 @@ def verify_domain(verification_req: DomainVerificationRequest,
     check_api_key(api_key_query, api_key_header)
 
     # Do the actual work
-    result = verify_domain_servers(verification_req.domain, 
-                           openssl=OPENSSL_PATH,
-                           external_resolver=EXTERNAL_RESOLVER,
-                           disable_dnssec=NO_STRICT_DNSSEC)
+    try:
+        result = verify_domain_servers(verification_req.domain, 
+                               openssl=OPENSSL_PATH,
+                               external_resolver=EXTERNAL_RESOLVER,
+                               disable_dnssec=NO_STRICT_DNSSEC)
+    except (MxRecordError, TlsaRecordError) as err:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(err)
+        )
 
     # Return the result in the user-specified format
     return format_output(result, query_params.format, accept)

@@ -5,6 +5,7 @@ import argparse
 from smtp_dane_verify.verification import \
     VerificationResult, DomainVerificationResult, \
     verify, verify_domain_servers
+from smtp_dane_verify.dns_records import MxRecordError, TlsaRecordError
 
 
 def format_results(results: VerificationResult|DomainVerificationResult, format: str):
@@ -139,14 +140,22 @@ def main() -> int:
         external_resolver = args.nameserver
 
     if args.hostname is not None:
-        result = verify(args.hostname, disable_dnssec=args.no_strict_dnssec, external_resolver=external_resolver, openssl=args.openssl)
+        try:
+            result = verify(args.hostname, disable_dnssec=args.no_strict_dnssec, external_resolver=external_resolver, openssl=args.openssl)
+        except (MxRecordError, TlsaRecordError) as err:
+            log.error(str(err))
+            return 1
         format_results(result, args.format)
         if result.host_dane_verified == True:
             return 0
         else:
             return 1
     elif args.domain is not None:
-        result = verify_domain_servers(args.domain, disable_dnssec=args.no_strict_dnssec, external_resolver=external_resolver, openssl=args.openssl)
+        try:
+            result = verify_domain_servers(args.domain, disable_dnssec=args.no_strict_dnssec, external_resolver=external_resolver, openssl=args.openssl)
+        except (MxRecordError, TlsaRecordError) as err:
+            log.error(str(err))
+            return 1
         format_results(result, args.format)
         if result.all_hosts_dane_verified == True:
             return 0
