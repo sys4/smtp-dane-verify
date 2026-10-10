@@ -14,7 +14,6 @@ from smtp_dane_verify.dns_records import (
     get_tlsa_record,
     get_mx_records,
 )
-from smtp_dane_verify.dnssec import query_dnssec, DNSSECError
 
 
 class VerificationResult(pydantic.BaseModel):
