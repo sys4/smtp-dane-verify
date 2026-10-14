@@ -123,7 +123,7 @@ def main() -> int:
     else:
         logging.basicConfig(level=logging.INFO)
         log = logging.getLogger('main')
-        log.debug('DEBUG logging enabled.')
+        log.info('INFO logging enabled.')
 
     if args.help:
         parser.print_help()
